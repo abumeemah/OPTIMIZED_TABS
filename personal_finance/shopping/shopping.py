@@ -1180,10 +1180,16 @@ def manage_list(list_id):
                             if current_user.is_authenticated and not is_admin() and required_credits > 0:
                                 if not check_ficore_credit_balance(required_amount=required_credits, user_id=current_user.id):
                                     flash(trans('shopping_insufficient_credits', default='Insufficient credits to save changes.'), 'danger')
-                                    return redirect(url_for('dashboard.index'))
+                                    return redirect(url_for('shopping.main', tab='manage-list', list_id=list_id))
                                 if not deduct_ficore_credits(db, current_user.id, required_credits, 'save_shopping_list_changes', list_id, mongo_session):
                                     flash(trans('shopping_credit_deduction_failed', default='Failed to deduct credits for changes.'), 'danger')
                                     return redirect(url_for('shopping.main', tab='manage-list', list_id=list_id))
+                            if total_operations > 0:
+                                get_shopping_lists.cache_clear()
+                            flash(trans('shopping_changes_saved', default='Changes saved successfully!'), 'success')
+                            if total_spent > new_budget and new_budget > 0:
+                                flash(trans('shopping_over_budget', default='Warning: Total spent exceeds budget by ') + format_currency(total_spent - new_budget) + '.', 'warning')
+                            return redirect(url_for('shopping.main', tab='manage-list', list_id=list_id))
                             get_shopping_lists.cache_clear()
                     flash(trans('shopping_changes_saved', default='Changes saved successfully!'), 'success')
                     if total_spent > new_budget and new_budget > 0:
