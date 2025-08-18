@@ -396,7 +396,7 @@ def new():
                             'food_raw': 0.0,
                             'transport': format_currency(0.0),
                             'transport_raw': 0.0,
-                            'dependents': format_currency(0.0),
+                            'dependents': str(0),
                             'dependents_raw': 0,
                             'miscellaneous': format_currency(0.0),
                             'miscellaneous_raw': 0.0,
@@ -551,9 +551,14 @@ def new():
         return render_template(
             'budget/new.html',
             form=form,
+            budgets=budgets_dict,
+            latest_budget=latest_budget,
+            categories=categories,
             tips=tips,
+            insights=insights,
             activities=activities,
-            tool_title=trans('budget_create_budget', default='Create Budget')
+            tool_title=trans('budget_title', default='Budget Planner'),
+            active_tab=active_tab
         )
     except Exception as e:
         current_app.logger.exception(f"Unexpected error in budget.main active_tab: {active_tab}", extra={'session_id': session.get('sid', 'unknown')})
@@ -561,6 +566,8 @@ def new():
         return render_template(
             'budget/new.html',
             form=form,
+            budgets={},
+            latest_budget={
                 'id': None,
                 'user_id': None,
                 'session_id': session.get('sid', 'unknown'),
@@ -718,7 +725,7 @@ def dashboard():
             trans("budget_tip_track_expenses", default='Track your expenses daily to stay within budget.'),
             trans("budget_tip_ajo_savings", default='Contribute to ajo savings for financial discipline.'),
             trans("budget_tip_data_subscriptions", default='Optimize data subscriptions to reduce costs.'),
-            trans("budget_tip_plan_dependents", default='Plan for dependents' expenses in advance.')
+            trans("budget_tip_plan_dependents", default='Plan for dependents’ expenses in advance.')
         ]
 
         insights = []
@@ -920,6 +927,7 @@ def handle_csrf_error(e):
     current_app.logger.error(f"CSRF error on {request.path}: {e.description}", extra={'session_id': session.get('sid', 'unknown')})
     flash(trans('budget_csrf_error', default='Form submission failed due to a missing security token. Please refresh and try again.'), 'danger')
     return redirect(request.url), 403
+
 @budget_bp.route('/export_pdf', methods=['GET'])
 @custom_login_required
 @utils.requires_role(['personal', 'admin'])
@@ -1025,8 +1033,9 @@ def export_pdf():
     except Exception as e:
         logger.error(f"Error exporting budget PDF: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
         flash(trans('budget_pdf_error', default='Error generating PDF report.'), 'danger')
-        return redirect(url_for('budget.manage'))@bud
-get_bp.route('/delete_budget', methods=['POST'])
+        return redirect(url_for('budget.manage'))
+
+@budget_bp.route('/delete_budget', methods=['POST'])
 @custom_login_required
 @utils.requires_role(['personal', 'admin'])
 def delete_budget():
