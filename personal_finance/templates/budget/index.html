@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}
+{{ t('budget_title', default='Budget Planner') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Tool Header -->
+    {% set tool_name = 'budget_title' %}
+    {% set tool_icon = 'fa-calculator' %}
+    {% set subtitle = t('budget_subtitle', default='Plan and manage your finances effectively') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Cards -->
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm hover-card">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-plus-circle fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">{{ t('budget_create_budget', default='Create New Budget') }}</h5>
+                    <p class="card-text text-muted">{{ t('budget_create_description', default='Plan your monthly income and expenses to achieve your financial goals') }}</p>
+                    <a href="{{ url_for('budget.new') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>{{ t('budget_get_started', default='Get Started') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm hover-card">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-chart-pie fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">{{ t('budget_dashboard', default='Budget Dashboard') }}</h5>
+                    <p class="card-text text-muted">{{ t('budget_dashboard_description', default='View your financial overview, insights, and budget performance') }}</p>
+                    <a href="{{ url_for('budget.dashboard') }}" class="btn btn-success">
+                        <i class="fas fa-chart-pie me-2"></i>{{ t('budget_view_dashboard', default='View Dashboard') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm hover-card">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-edit fa-3x text-warning"></i>
+                    </div>
+                    <h5 class="card-title">{{ t('budget_manage_budgets', default='Manage Budgets') }}</h5>
+                    <p class="card-text text-muted">{{ t('budget_manage_description', default='Review, edit, and organize your existing budgets') }}</p>
+                    <a href="{{ url_for('budget.manage') }}" class="btn btn-warning">
+                        <i class="fas fa-edit me-2"></i>{{ t('budget_manage_now', default='Manage Now') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Tips -->
+    <div class="row mt-5">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>{{ t('budget_quick_tips', default='Quick Tips') }}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('budget_tip_track_expenses', default='Track your expenses daily to stay within budget') }}</li>
+                                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('budget_tip_ajo_savings', default='Contribute to ajo savings for financial discipline') }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('budget_tip_data_subscriptions', default='Optimize data subscriptions to reduce costs') }}</li>
+                                <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('budget_tip_plan_dependents', default='Plan for dependents\' expenses in advance') }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hover-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+}
+</style>
+{% endblock %}

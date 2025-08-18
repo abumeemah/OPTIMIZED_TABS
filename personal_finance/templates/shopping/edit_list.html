@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title %}
+{{ t('shopping_edit_list', default='Edit Shopping List') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% set tool_name = 'shopping_edit_list' %}
+    {% set tool_icon = 'fa-edit' %}
+    {% set subtitle = t('shopping_edit_description', default='Edit your shopping list and manage items') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('shopping.index') }}">{{ t('shopping_title', default='Shopping List Manager') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('shopping.manage') }}">{{ t('shopping_manage_lists', default='Manage Lists') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('shopping_edit_list', default='Edit List') }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- List Details -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-list me-2"></i>{{ t('shopping_list_details', default='List Details') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('shopping.edit_list', list_id=list_id) }}" class="validate-form">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="action" value="update_list">
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">{{ t('shopping_list_name', default='List Name') }}</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ list_form.name.data or shopping_list.name }}" required>
+                            <div class="invalid-feedback">{{ t('shopping_list_name_invalid', default='Please enter a valid list name') }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="budget" class="form-label">{{ t('shopping_budget', default='Budget') }}</label>
+                            <input type="number" class="form-control" id="budget" name="budget" step="0.01" min="0" value="{{ list_form.budget.data or shopping_list.budget }}" required>
+                            <div class="invalid-feedback">{{ t('shopping_budget_invalid', default='Please enter a valid budget') }}</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i>{{ t('shopping_update_list', default='Update List') }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- List Statistics -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6><i class="fas fa-chart-bar me-2"></i>{{ t('shopping_statistics', default='Statistics') }}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h5 class="text-primary">{{ items|length }}</h5>
+                            <small class="text-muted">{{ t('shopping_total_items', default='Total Items') }}</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-success">{{ items|selectattr('status', 'equalto', 'bought')|list|length }}</h5>
+                            <small class="text-muted">{{ t('shopping_bought_items', default='Bought') }}</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row text-center">
+                        <div class="col-12">
+                            <h5 class="text-warning">{{ "%.2f"|format(items|sum(attribute='price_raw')|float * items|sum(attribute='quantity')|float) }}</h5>
+                            <small class="text-muted">{{ t('shopping_total_cost', default='Total Cost') }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Management -->
+        <div class="col-lg-8">
+            <!-- Add New Item -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-plus me-2"></i>{{ t('shopping_add_item', default='Add New Item') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('shopping.edit_list', list_id=list_id) }}" class="validate-form">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="action" value="add_item">
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="item_name" class="form-label">{{ t('shopping_item_name', default='Item Name') }}</label>
+                                <input type="text" class="form-control" id="item_name" name="name" placeholder="{{ t('shopping_item_name_placeholder', default='e.g., Milk') }}" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="item_quantity" class="form-label">{{ t('shopping_quantity', default='Quantity') }}</label>
+                                <input type="number" class="form-control" id="item_quantity" name="quantity" min="1" max="1000" value="1" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="item_price" class="form-label">{{ t('shopping_price', default='Price') }}</label>
+                                <input type="number" class="form-control" id="item_price" name="price" step="0.01" min="0" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="item_unit" class="form-label">{{ t('shopping_unit', default='Unit') }}</label>
+                                <select class="form-select" id="item_unit" name="unit" required>
+                                    <option value="piece">{{ t('shopping_unit_piece', default='Piece') }}</option>
+                                    <option value="carton">{{ t('shopping_unit_carton', default='Carton') }}</option>
+                                    <option value="kg">{{ t('shopping_unit_kg', default='Kilogram') }}</option>
+                                    <option value="liter">{{ t('shopping_unit_liter', default='Liter') }}</option>
+                                    <option value="pack">{{ t('shopping_unit_pack', default='Pack') }}</option>
+                                    <option value="other">{{ t('shopping_unit_other', default='Other') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="item_category" class="form-label">{{ t('shopping_category', default='Category') }}</label>
+                                <select class="form-select" id="item_category" name="category">
+                                    <option value="fruits">{{ t('shopping_category_fruits', default='Fruits') }}</option>
+                                    <option value="vegetables">{{ t('shopping_category_vegetables', default='Vegetables') }}</option>
+                                    <option value="dairy">{{ t('shopping_category_dairy', default='Dairy') }}</option>
+                                    <option value="meat">{{ t('shopping_category_meat', default='Meat') }}</option>
+                                    <option value="grains">{{ t('shopping_category_grains', default='Grains') }}</option>
+                                    <option value="beverages">{{ t('shopping_category_beverages', default='Beverages') }}</option>
+                                    <option value="household">{{ t('shopping_category_household', default='Household') }}</option>
+                                    <option value="other" selected>{{ t('shopping_category_other', default='Other') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="item_store" class="form-label">{{ t('shopping_store', default='Store') }}</label>
+                                <input type="text" class="form-control" id="item_store" name="store" placeholder="{{ t('shopping_store_placeholder', default='e.g., Walmart') }}" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="item_frequency" class="form-label">{{ t('shopping_frequency', default='Frequency (days)') }}</label>
+                                <input type="number" class="form-control" id="item_frequency" name="frequency" min="1" max="365" value="7" required>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus me-2"></i>{{ t('shopping_add_item', default='Add Item') }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Items List -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-shopping-cart me-2"></i>{{ t('shopping_items_list', default='Items List') }}</h5>
+                    <span class="badge bg-light text-dark">{{ items|length }} {{ t('shopping_items', default='items') }}</span>
+                </div>
+                <div class="card-body">
+                    {% if items %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>{{ t('shopping_item_name', default='Item') }}</th>
+                                        <th>{{ t('shopping_quantity', default='Qty') }}</th>
+                                        <th>{{ t('shopping_price', default='Price') }}</th>
+                                        <th>{{ t('shopping_unit', default='Unit') }}</th>
+                                        <th>{{ t('shopping_category', default='Category') }}</th>
+                                        <th>{{ t('shopping_store', default='Store') }}</th>
+                                        <th>{{ t('shopping_status', default='Status') }}</th>
+                                        <th>{{ t('shopping_actions', default='Actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                        <tr id="item-{{ item.id }}" class="{{ 'table-success' if item.status == 'bought' else '' }}">
+                                            <td>
+                                                <strong>{{ item.name }}</strong>
+                                            </td>
+                                            <td>{{ item.quantity }}</td>
+                                            <td>{{ "%.2f"|format(item.price_raw) }}</td>
+                                            <td>{{ t('shopping_unit_' + item.unit, default=item.unit.title()) }}</td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ t('shopping_category_' + item.category, default=item.category.title()) }}</span>
+                                            </td>
+                                            <td>{{ item.store }}</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm {{ 'btn-success' if item.status == 'bought' else 'btn-outline-secondary' }}" 
+                                                        onclick="toggleItemStatus('{{ item.id }}', '{{ item.status }}')">
+                                                    <i class="fas {{ 'fa-check' if item.status == 'bought' else 'fa-shopping-cart' }} me-1"></i>
+                                                    {{ t('shopping_status_' + item.status, default=item.status.title()) }}
+                                                </button>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editItem('{{ item.id }}')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.id }}', '{{ item.name }}')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-shopping-cart fa-3x mb-3 text-muted"></i>
+                            <h5 class="text-muted">{{ t('shopping_no_items', default='No items in this list yet') }}</h5>
+                            <p class="text-muted">{{ t('shopping_add_items_description', default='Add items using the form above') }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editItemModalLabel">{{ t('shopping_edit_item', default='Edit Item') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('shopping.edit_list', list_id=list_id) }}" id="editItemForm">
+                {{ csrf_token() }}
+                <input type="hidden" name="action" value="update_item">
+                <input type="hidden" name="item_id" id="edit_item_id">
+                
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_item_name" class="form-label">{{ t('shopping_item_name', default='Item Name') }}</label>
+                            <input type="text" class="form-control" id="edit_item_name" name="item_name" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edit_item_quantity" class="form-label">{{ t('shopping_quantity', default='Quantity') }}</label>
+                            <input type="number" class="form-control" id="edit_item_quantity" name="item_quantity" min="1" max="1000" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edit_item_price" class="form-label">{{ t('shopping_price', default='Price') }}</label>
+                            <input type="number" class="form-control" id="edit_item_price" name="item_price" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="edit_item_unit" class="form-label">{{ t('shopping_unit', default='Unit') }}</label>
+                            <select class="form-select" id="edit_item_unit" name="item_unit" required>
+                                <option value="piece">{{ t('shopping_unit_piece', default='Piece') }}</option>
+                                <option value="carton">{{ t('shopping_unit_carton', default='Carton') }}</option>
+                                <option value="kg">{{ t('shopping_unit_kg', default='Kilogram') }}</option>
+                                <option value="liter">{{ t('shopping_unit_liter', default='Liter') }}</option>
+                                <option value="pack">{{ t('shopping_unit_pack', default='Pack') }}</option>
+                                <option value="other">{{ t('shopping_unit_other', default='Other') }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edit_item_category" class="form-label">{{ t('shopping_category', default='Category') }}</label>
+                            <select class="form-select" id="edit_item_category" name="item_category">
+                                <option value="fruits">{{ t('shopping_category_fruits', default='Fruits') }}</option>
+                                <option value="vegetables">{{ t('shopping_category_vegetables', default='Vegetables') }}</option>
+                                <option value="dairy">{{ t('shopping_category_dairy', default='Dairy') }}</option>
+                                <option value="meat">{{ t('shopping_category_meat', default='Meat') }}</option>
+                                <option value="grains">{{ t('shopping_category_grains', default='Grains') }}</option>
+                                <option value="beverages">{{ t('shopping_category_beverages', default='Beverages') }}</option>
+                                <option value="household">{{ t('shopping_category_household', default='Household') }}</option>
+                                <option value="other">{{ t('shopping_category_other', default='Other') }}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edit_item_store" class="form-label">{{ t('shopping_store', default='Store') }}</label>
+                            <input type="text" class="form-control" id="edit_item_store" name="item_store" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="edit_item_frequency" class="form-label">{{ t('shopping_frequency', default='Frequency (days)') }}</label>
+                            <input type="number" class="form-control" id="edit_item_frequency" name="item_frequency" min="1" max="365" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_item_status" class="form-label">{{ t('shopping_status', default='Status') }}</label>
+                        <select class="form-select" id="edit_item_status" name="item_status">
+                            <option value="to_buy">{{ t('shopping_status_to_buy', default='To Buy') }}</option>
+                            <option value="bought">{{ t('shopping_status_bought', default='Bought') }}</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('general_cancel', default='Cancel') }}</button>
+                    <button type="submit" class="btn btn-primary">{{ t('shopping_update_item', default='Update Item') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Item Modal -->
+<div class="modal fade" id="deleteItemModal" tabindex="-1" aria-labelledby="deleteItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteItemModalLabel">{{ t('shopping_confirm_delete_item', default='Confirm Delete Item') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ t('shopping_delete_item_confirmation', default='Are you sure you want to delete the item') }} "<span id="deleteItemName"></span>"?</p>
+                <p class="text-danger small">{{ t('shopping_delete_warning', default='This action cannot be undone.') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('general_cancel', default='Cancel') }}</button>
+                <form method="POST" action="{{ url_for('shopping.edit_list', list_id=list_id) }}" style="display: inline;">
+                    {{ csrf_token() }}
+                    <input type="hidden" name="action" value="delete_item">
+                    <input type="hidden" name="item_id" id="delete_item_id">
+                    <button type="submit" class="btn btn-danger">{{ t('shopping_delete', default='Delete') }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const forms = document.querySelectorAll('.validate-form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            if (!this.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            this.classList.add('was-validated');
+        });
+    });
+});
+
+function toggleItemStatus(itemId, currentStatus) {
+    fetch('/shopping/toggle_item_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+        },
+        body: JSON.stringify({ item_id: itemId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Error updating item status');
+        }
+    })
+    .catch(error => {
+        alert('Error updating item status');
+    });
+}
+
+function editItem(itemId) {
+    // Find the item data from the table
+    const row = document.getElementById(`item-${itemId}`);
+    const cells = row.querySelectorAll('td');
+    
+    // Get current item data from the items array (this would need to be passed from backend)
+    {% for item in items %}
+        if ('{{ item.id }}' === itemId) {
+            document.getElementById('edit_item_id').value = '{{ item.id }}';
+            document.getElementById('edit_item_name').value = '{{ item.name }}';
+            document.getElementById('edit_item_quantity').value = '{{ item.quantity }}';
+            document.getElementById('edit_item_price').value = '{{ item.price_raw }}';
+            document.getElementById('edit_item_unit').value = '{{ item.unit }}';
+            document.getElementById('edit_item_category').value = '{{ item.category }}';
+            document.getElementById('edit_item_store').value = '{{ item.store }}';
+            document.getElementById('edit_item_frequency').value = '{{ item.frequency }}';
+            document.getElementById('edit_item_status').value = '{{ item.status }}';
+        }
+    {% endfor %}
+    
+    const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+    modal.show();
+}
+
+function deleteItem(itemId, itemName) {
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('delete_item_id').value = itemId;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteItemModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

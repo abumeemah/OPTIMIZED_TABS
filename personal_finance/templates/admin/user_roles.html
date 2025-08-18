@@ -1,0 +1,103 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script>{% extends "base.html" %}
+{% block title %}
+{{ t('admin_user_roles', default='Manage User Roles') | escape }} - FiCore
+{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">{{ t('admin_user_roles', default='Manage User Roles') | escape }}</h1>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message | escape }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Users List with Role Update Forms -->
+    <h2 class="mb-3">{{ t('admin_users_list', default='Users') | escape }}</h2>
+    {% if users %}
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ t('general_username', default='Username') | escape }}</th>
+                        <th>{{ t('general_email', default='Email') | escape }}</th>
+                        <th>{{ t('general_role', default='Current Role') | escape }}</th>
+                        <th>{{ t('admin_update_role', default='Update Role') | escape }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user._id | escape }}</td>
+                            <td>{{ user.email | escape }}</td>
+                            <td>{{ t('general_' + user.role, default=user.role.capitalize()) | escape }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('admin.manage_user_roles') }}">
+                                    {{ form.hidden_tag() }}
+                                    <input type="hidden" name="user_id" value="{{ user._id | escape }}">
+                                    <div class="d-flex gap-2">
+                                        {{ form.role(class="form-select") }}
+                                        {{ form.submit(class="btn btn-primary btn-sm") }}
+                                    </div>
+                                    {% if form.role.errors %}
+                                        {% for error in form.role.errors %}
+                                            <div class="invalid-feedback d-block">{{ error | escape }}</div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted">{{ t('admin_no_users', default='No users found') | escape }}</p>
+    {% endif %}
+</div>
+{% endblock %}

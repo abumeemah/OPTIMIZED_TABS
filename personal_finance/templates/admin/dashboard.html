@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin_dashboard', default='Admin Dashboard') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('admin_dashboard', default='Admin Dashboard') }}</h2>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ t('admin_users', default='Users') }}</h5>
+                    <p class="card-text h3">{{ stats.users }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ t('admin_budgets', default='Budgets') }}</h5>
+                    <p class="card-text h3">{{ stats.budgets }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ t('admin_bills', default='Bills') }}</h5>
+                    <p class="card-text h3">{{ stats.bills }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ t('admin_shopping_lists', default='Shopping Lists') }}</h5>
+                    <p class="card-text h3">{{ stats.shopping_lists }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">{{ t('admin_recent_users', default='Recent Users') }}</h5>
+        </div>
+        <div class="card-body">
+            {% if recent_users %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin_username', default='Username') }}</th>
+                        <th>{{ t('admin_email', default='Email') }}</th>
+                        <th>{{ t('user_role', default='Role') }}</th>
+                        <th>{{ t('admin_created_at', default='Created At') }}</th>
+                        <th>{{ t('ficore_credit_balance', default='Ficore Credit Balance') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in recent_users %}
+                    <tr>
+                        <td>{{ user._id }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.role }}</td>
+                        <td>{{ user.created_at | format_date }}</td>
+                        <td>{{ user.ficore_credit_balance }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{{ t('admin_no_users', default='No recent users found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">{{ t('admin_tool_usage', default='Tool Usage') }}</h5>
+        </div>
+        <div class="card-body">
+            <p>{{ t('admin_audit_logs_accessed', default='Audit Logs Accessed') }}: {{ tool_usage.audit_logs }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

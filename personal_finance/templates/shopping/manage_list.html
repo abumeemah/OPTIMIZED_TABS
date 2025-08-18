@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ t('shopping_title', default='Shopping List Manager') | e }}
+{% endblock %}
+
+{% block extra_head %}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% set tool_name = 'shopping_title' %}
+    {% set tool_icon = 'fa-cart-shopping' %}
+    {% set subtitle = t('shopping_subtitle', default='Organize and manage your shopping lists efficiently') | e %}
+    {% include 'tool_header.html' %}
+
+    <div class="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="toast align-items-center text-white bg-{{ 'success' if category == 'success' else 'danger' if category == 'error' else 'warning' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            {{ t(message, default=message) | e }}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="{{ t('general_close', default='Close') | e }}"></button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% endwith %}
+    </div>
+
+    <div class="modal fade" id="budgetWarningModal" tabindex="-1" aria-labelledby="budgetWarningModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="budgetWarningModalLabel">{{ t('shopping_budget_warning', default='Budget Exceeded') | e }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('general_close', default='Close') | e }}"></button>
+                </div>
+                <div class="modal-body">
+                    {{ t('shopping_budget_exceeded', default='Your total spending exceeds the budget. Please review your items.') | e }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('general_close', default='Close') | e }}</button>
+                    <button type="button" class="btn btn-primary" id="proceedSubmit">{{ t('shopping_proceed_anyway', default='Proceed Anyway') | e }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade edit-modal" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editItemModalLabel">{{ t('shopping_edit_item', default='Edit Item') | e }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('general_close', default='Close') | e }}"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-item-id">
+                    <div class="mb-3">
+                        <label for="edit-item-name" class="form-label">{{ t('general_item_name', default='Item Name') | e }}</label>
+                        <input type="text" id="edit-item-name" class="form-control" required>
+                        <div class="invalid-feedback">{{ t('shopping_item_name_invalid', default='Please enter a valid item name') | e }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-quantity" class="form-label">{{ t('general_quantity', default='Quantity') | e }}</label>
+                        <input type="number" id="edit-item-quantity" class="form-control number-input" min="1" max="1000" required>
+                        <small class="form-text text-muted">{{ t('shopping_quantity_help', default='Enter the number of units (e.g., 2 cartons, 5 pieces)') | e }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-price" class="form-label">{{ t('general_price', default='Price') | e }}</label>
+                        <input type="text" id="edit-item-price" class="form-control number-input" data-allow-commas="true" required>
+                        <small class="form-text text-muted">{{ t('shopping_price_help', default='Enter price per unit (e.g., price for one carton or piece)') | e }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-unit" class="form-label">{{ t('general_unit', default='Unit') | e }}</label>
+                        <select id="edit-item-unit" class="form-control">
+                            {% for value, label in item_form.unit.choices %}
+                                <option value="{{ value | e }}">{{ t(value, default=label) | e }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-category" class="form-label">{{ t('general_category', default='Category') | e }}</label>
+                        <select id="edit-item-category" class="form-control">
+                            {% for value, label in item_form.category.choices %}
+                                <option value="{{ value | e }}">{{ t(value, default=label) | e }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-status" class="form-label">{{ t('general_status', default='Status') | e }}</label>
+                        <select id="edit-item-status" class="form-control">
+                            {% for value, label in item_form.status.choices %}
+                                <option value="{{ value | e }}">{{ t(value, default=label) | e }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-store" class="form-label">{{ t('general_store', default='Store') | e }}</label>
+                        <input type="text" id="edit-item-store" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-item-frequency" class="form-label">{{ t('general_frequency', default='Frequency') | e }}</label>
+                        <input type="number" id="edit-item-frequency" class="form-control number-input" min="1" max="365">
+                        <small class="form-text text-muted">{{ t('shopping_frequency_help', default='Enter frequency in days (e.g., 7)') | e }}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('general_cancel', default='Cancel') | e }}</button>
+                    <button type="button" class="btn btn-primary" id="saveEditItem">{{ t('shopping_save_changes', default='Save Changes') | e }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="duplicateWarning" class="alert alert-warning alert-dismissible fade d-none" role="alert">
+        {{ t('shopping_duplicate_item', default='Duplicate item name detected. Please use unique item names.') | e }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ t('general_close', default='Close') | e }}"></button>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="shoppingTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" href="{{ url_for('shopping.main', tab='create-list') | e }}">
+                <i class="fa-solid fa-plus"></i> {{ t('shopping_create_list', default='Create List') | e }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" href="{{ url_for('shopping.main', tab='add-items') | e }}">
+                <i class="fa-solid fa-cart-plus"></i> {{ t('shopping_add_items', default='Add Items') | e }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" href="{{ url_for('shopping.main', tab='view-lists') | e }}">
+                <i class="fa-solid fa-list"></i> {{ t('shopping_view_lists', default='View Lists') | e }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="manage-list-tab" data-bs-toggle="tab" data-bs-target="#manage-list" type="button" role="tab" aria-controls="manage-list" aria-selected="true">
+                <i class="fa-solid fa-list-check"></i> {{ t('shopping_manage_list', default='Manage List') | e }}
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="shoppingTabContent">
+        <div class="tab-pane fade show active" id="manage-list" role="tabpanel" aria-labelledby="manage-list-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fa-solid fa-list-check"></i> {{ t('shopping_manage_list', default='Manage Shopping List') | e }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if lists %}
+                        <div class="mb-3">
+                            <label for="manage-list-select" class="form-label">{{ t('shopping_select_list', default='Select a Shopping List') | e }}</label>
+                            <select id="manage-list-select" class="form-select" onchange="loadListDetails(this.value, 'manage-list')">
+                                <option value="">{{ t('general_select', default='Select a list') | e }}</option>
+                                {% for list_id, lst in lists.items() %}
+                                    {% if lst.status != 'saved' %}
+                                        <option value="{{ lst.id | e }}" {{ 'selected' if selected_list_id == lst.id else '' }}>{{ lst.name | e }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div id="manage-list-details">
+                            {% if selected_list and selected_list.id %}
+                                {% include 'personal/SHOPPING/manage_list_details.html' %}
+                            {% else %}
+                                <div class="empty-state text-center">
+                                    <i class="fa-solid fa-cart-shopping fa-3x mb-3"></i>
+                                    <p>{{ t('shopping_no_list_selected', default='No active list selected. Please select an active list to manage.') | e }}</p>
+                                    <a href="{{ url_for('shopping.main', tab='create-list') | e }}" class="btn btn-primary">
+                                        <i class="fa-solid fa-plus"></i> {{ t('shopping_create_list', default='Create List') | e }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div id="manage-list-details" class="empty-state text-center">
+                            <i class="fa-solid fa-cart-shopping fa-3x mb-3"></i>
+                            <p>{{ t('shopping_no_lists', default='No active lists found. Create one to get started.') | e }}</p>
+                            <a href="{{ url_for('shopping.main', tab='create-list') | e }}" class="btn btn-primary">
+                                <i class="fa-solid fa-plus"></i> {{ t('shopping_create_list', default='Create List') | e }}
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Inlined content of shopping.js
+    function formatNumber(value) {
+        if (!value) return '';
+        const cleaned = String(value).replace(/,/g, '');
+        const number = parseFloat(cleaned);
+        if (isNaN(number)) return '';
+        return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function parseNumber(value) {
+        return parseFloat(String(value).replace(/,/g, '')) || 0;
+    }
+
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const quantity = parseNumber(row.querySelector('.item-quantity')?.textContent);
+            const price = parseNumber(row.querySelector('.item-price')?.textContent);
+            total += quantity * price;
+        });
+        const totalElement = document.getElementById('list-total');
+        if (totalElement) {
+            totalElement.textContent = formatNumber(total);
+        }
+    }
+
+    function updateItemStatus(itemId) {
+        const is_checked = document.getElementById(`item-${itemId}-checkbox`).checked;
+        fetch(window.SHOPPING_UPDATE_ITEM_STATUS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({ item_id: itemId, status: is_checked ? 'purchased' : 'pending' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const row = document.getElementById(`item-row-${itemId}`);
+                if (row) {
+                    row.classList.toggle('bg-light', is_checked);
+                    const name = row.querySelector('.item-name');
+                    if (name) {
+                        name.style.textDecoration = is_checked ? 'line-through' : 'none';
+                        name.style.color = is_checked ? '#6c757d' : '';
+                    }
+                }
+            } else {
+                console.error('Failed to update item status:', data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function deleteItem(itemId) {
+        if (!confirm('Are you sure you want to delete this item?')) return;
+        fetch(window.SHOPPING_DELETE_ITEM_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({ item_id: itemId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById(`item-row-${itemId}`).remove();
+                calculateTotal();
+            } else {
+                console.error('Failed to delete item:', data.message);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function editItem(itemId) {
+        const row = document.getElementById(`item-row-${itemId}`);
+        document.getElementById('edit-item-id').value = itemId;
+        document.getElementById('edit-item-name').value = row.dataset.name;
+        document.getElementById('edit-item-quantity').value = row.dataset.quantity;
+        document.getElementById('edit-item-price').value = parseNumber(row.dataset.price);
+        document.getElementById('edit-item-unit').value = row.dataset.unit;
+        document.getElementById('edit-item-category').value = row.dataset.category;
+        document.getElementById('edit-item-status').value = row.dataset.status;
+        document.getElementById('edit-item-store').value = row.dataset.store;
+        document.getElementById('edit-item-frequency').value = row.dataset.frequency;
+
+        const editModal = new bootstrap.Modal(document.getElementById('editItemModal'));
+        editModal.show();
+    }
+
+    document.getElementById('saveEditItem')?.addEventListener('click', function() {
+        const itemId = document.getElementById('edit-item-id').value;
+        const itemName = document.getElementById('edit-item-name').value;
+        const itemQuantity = document.getElementById('edit-item-quantity').value;
+        const itemPrice = document.getElementById('edit-item-price').value;
+        const itemUnit = document.getElementById('edit-item-unit').value;
+        const itemCategory = document.getElementById('edit-item-category').value;
+        const itemStatus = document.getElementById('edit-item-status').value;
+        const itemStore = document.getElementById('edit-item-store').value;
+        const itemFrequency = document.getElementById('edit-item-frequency').value;
+
+        if (!itemName || !itemQuantity || !itemPrice) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+
+        fetch(window.SHOPPING_UPDATE_ITEM_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': window.CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                name: itemName,
+                quantity: itemQuantity,
+                price: itemPrice,
+                unit: itemUnit,
+                category: itemCategory,
+                status: itemStatus,
+                store: itemStore,
+                frequency: itemFrequency
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const row = document.getElementById(`item-row-${itemId}`);
+                row.dataset.name = itemName;
+                row.dataset.quantity = itemQuantity;
+                row.dataset.price = itemPrice;
+                row.dataset.unit = itemUnit;
+                row.dataset.category = itemCategory;
+                row.dataset.status = itemStatus;
+                row.dataset.store = itemStore;
+                row.dataset.frequency = itemFrequency;
+
+                row.querySelector('.item-name').textContent = itemName;
+                row.querySelector('.item-quantity').textContent = `${itemQuantity} ${itemUnit}`;
+                row.querySelector('.item-price').textContent = formatNumber(itemPrice);
+                row.querySelector('.item-status').textContent = itemStatus.charAt(0).toUpperCase() + itemStatus.slice(1);
+                row.querySelector('.item-category').textContent = itemCategory.charAt(0).toUpperCase() + itemCategory.slice(1);
+                row.querySelector('.item-store').textContent = itemStore;
+                row.querySelector('.item-frequency').textContent = itemFrequency ? `${itemFrequency} days` : 'N/A';
+                calculateTotal();
+                bootstrap.Modal.getInstance(document.getElementById('editItemModal')).hide();
+            } else {
+                console.error('Failed to update item:', data.message);
+                alert('Failed to save changes: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving changes.');
+        });
+    });
+
+    function loadListDetails(listId, targetDivId) {
+        const url = `${window.SHOPPING_GET_LIST_DETAILS_URL}?list_id=${listId}`;
+        fetch(url)
+            .then(response => response.text())
+            .then(html => {
+                const targetDiv = document.getElementById(targetDivId + '-details');
+                if (targetDiv) {
+                    targetDiv.innerHTML = html;
+                    calculateTotal();
+                }
+            })
+            .catch(error => console.error('Error loading list details:', error));
+    }
+
+    function checkDuplicateItemNames(form) {
+        const itemNames = new Set();
+        const inputs = form.querySelectorAll('.new-item-name');
+        let isDuplicate = false;
+        inputs.forEach(input => {
+            const name = input.value.trim().toLowerCase();
+            if (name && itemNames.has(name)) {
+                isDuplicate = true;
+            }
+            itemNames.add(name);
+        });
+        return isDuplicate;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        let itemIndex = 1;
+        document.getElementById('addNewItemRow')?.addEventListener('click', function() {
+            const container = document.getElementById('new-items-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'row new-item-row';
+            newRow.innerHTML = `
+                <div class="col-md-3 mb-3">
+                    <input type="text" name="new_items[${itemIndex}][name]" class="form-control new-item-name" placeholder="{{ t('shopping_item_name_placeholder', default='e.g., Milk') | e }}" required>
+                    <div class="invalid-feedback">{{ t('shopping_item_name_invalid', default='Please enter a valid item name') | e }}</div>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <input type="number" name="new_items[${itemIndex}][quantity]" class="form-control new-item-quantity number-input" placeholder="{{ t('shopping_quantity_placeholder', default='e.g., 2') | e }}" min="1" max="1000" value="1" required>
+                    <small class="form-text text-muted">{{ t('shopping_quantity_help', default='Enter the number of units (e.g., 2 cartons, 5 pieces)') | e }}</small>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <input type="text" name="new_items[${itemIndex}][price]" class="form-control new-item-price number-input" data-allow-commas="true" placeholder="{{ t('shopping_price_placeholder', default='e.g., 500.00') | e }}" value="0.00" required>
+                    <small class="form-text text-muted">{{ t('shopping_price_help', default='Enter price per unit (e.g., price for one carton or piece)') | e }}</small>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <select name="new_items[${itemIndex}][unit]" class="form-control">
+                        {% for value, label in item_form.unit.choices %}
+                            <option value="{{ value | e }}">{{ t(value, default=label) | e }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <select name="new_items[${itemIndex}][category]" class="form-control">
+                        {% for value, label in item_form.category.choices %}
+                            <option value="{{ value | e }}">{{ t(value, default=label) | e }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            `;
+            container.appendChild(newRow);
+            itemIndex++;
+        });
+
+        document.querySelectorAll('.toast').forEach(toast => {
+            new bootstrap.Toast(toast).show();
+        });
+
+        const select = document.getElementById('manage-list-select');
+        if (select && select.value) {
+            loadListDetails(select.value, 'manage-list');
+        }
+
+        // Ensure items-table-body exists
+        if (!document.getElementById('items-table-body')) {
+            console.warn('items-table-body element not found. Initializing empty tbody.');
+            const table = document.getElementById('items-table');
+            if (table) {
+                const tbody = document.createElement('tbody');
+                tbody.id = 'items-table-body';
+                table.appendChild(tbody);
+            }
+        }
+
+        // Clean comma-separated inputs on blur
+        document.querySelectorAll('input[data-allow-commas="true"]').forEach(input => {
+            input.addEventListener('blur', function() {
+                let value = this.value.replace(/,/g, '');
+                if (!isNaN(parseFloat(value)) && isFinite(value)) {
+                    this.value = parseFloat(value).toFixed(2);
+                }
+            });
+        });
+
+        document.getElementById('item-form')?.addEventListener('submit', function(event) {
+            if (checkDuplicateItemNames(this)) {
+                event.preventDefault();
+                const warning = document.getElementById('duplicateWarning');
+                warning.classList.remove('d-none');
+                warning.classList.add('show');
+            }
+        });
+    });
+</script>
+{% endblock %}

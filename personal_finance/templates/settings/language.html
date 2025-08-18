@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ t('settings_language', default='Language') }} - FiCore{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">{{ t('settings_language', default='Language') }}</h1>
+    <form action="{{ url_for('settings.language') }}" method="POST" class="row g-3">
+        {{ form.hidden_tag() }}
+        <div class="col-12">
+            <label for="language" class="form-label">{{ t('settings_language', default='Language') }}</label>
+            {{ form.language(class="form-control", required=True) }}
+            {% if form.language.errors %}
+                <p class="text-danger mt-1">{{ form.language.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100">{{ t('general_save', default='Save') }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

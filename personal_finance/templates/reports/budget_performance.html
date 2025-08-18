@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_ficore_report_header.html" import ficore_report_header %}
+{% block title %}{{ t('reports_budget_performance', default='Budget Performance Report') }} - FiCore{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    {{ ficore_report_header(current_user) }}
+    <div class="page-title">
+        <h1>{{ t('reports_budget_performance', default='Budget Performance Report') }}</h1>
+        <small class="subtext">{{ t('reports_subtitle', default='Rahoton Kasuwanci') }}</small>
+    </div>
+    <form action="{{ url_for('reports.budget_performance') }}" method="POST" class="row g-3 mb-4">
+        {{ form.hidden_tag() }}
+        <div class="col-12 col-md-6">
+            <label for="start_date" class="form-label">{{ t('reports_start_date', default='Start Date') }}</label>
+            {{ form.start_date(class="form-control", type="date") }}
+            {% if form.start_date.errors %}
+                <p class="text-danger mt-1">{{ form.start_date.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="col-12 col-md-6">
+            <label for="end_date" class="form-label">{{ t('reports_end_date', default='End Date') }}</label>
+            {{ form.end_date(class="form-control", type="date") }}
+            {% if form.end_date.errors %}
+                <p class="text-danger mt-1">{{ form.end_date.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" name="format" value="html" class="btn btn-primary">{{ t('general_view', default='View') }}</button>
+            <button type="submit" name="format" value="pdf" class="btn btn-success">{{ t('general_download_pdf', default='Download PDF') }}</button>
+            <button type="submit" name="format" value="csv" class="btn btn-success">{{ t('general_download_csv', default='Download CSV') }}</button>
+        </div>
+    </form>
+    {% if budget_data|length > 0 %}
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>{{ t('general_date', default='Date') }}</th>
+                        <th>{{ t('general_income', default='Income') }}</th>
+                        <th>{{ t('general_actual_income', default='Actual Income') }}</th>
+                        <th>{{ t('general_income_variance', default='Income Variance') }}</th>
+                        <th>{{ t('general_fixed_expenses', default='Fixed Expenses') }}</th>
+                        <th>{{ t('general_variable_expenses', default='Variable Expenses') }}</th>
+                        <th>{{ t('general_actual_expenses', default='Actual Expenses') }}</th>
+                        <th>{{ t('general_expense_variance', default='Expense Variance') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bd in budget_data %}
+                        <tr>
+                            <td data-label="{{ t('general_date', default='Date') }}">{{ format_date(bd.created_at) }}</td>
+                            <td data-label="{{ t('general_income', default='Income') }}">{{ format_currency(bd.income) }}</td>
+                            <td data-label="{{ t('general_actual_income', default='Actual Income') }}">{{ format_currency(bd.actual_income) }}</td>
+                            <td data-label="{{ t('general_income_variance', default='Income Variance') }}">{{ format_currency(bd.income_variance) }}</td>
+                            <td data-label="{{ t('general_fixed_expenses', default='Fixed Expenses') }}">{{ format_currency(bd.fixed_expenses) }}</td>
+                            <td data-label="{{ t('general_variable_expenses', default='Variable Expenses') }}">{{ format_currency(bd.variable_expenses) }}</td>
+                            <td data-label="{{ t('general_actual_expenses', default='Actual Expenses') }}">{{ format_currency(bd.actual_expenses) }}</td>
+                            <td data-label="{{ t('general_expense_variance', default='Expense Variance') }}">{{ format_currency(bd.expense_variance) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <p class="text-muted">{{ t('reports_no_budgets', default='No budgets found') }}</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

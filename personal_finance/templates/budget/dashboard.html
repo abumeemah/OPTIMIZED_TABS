@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}{{ t('budget_dashboard', default='Budget Dashboard') }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    {% set tool_name = 'budget_dashboard' %}
+    {% set tool_icon = 'fa-chart-pie' %}
+    {% set subtitle = t('budget_dashboard_description', default='View your financial overview, insights, and budget performance') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('budget.index') }}">{{ t('budget_title', default='Budget Planner') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('budget_dashboard', default='Dashboard') }}</li>
+        </ol>
+    </nav>
+
+    {% if latest_budget and latest_budget.get('id') %}
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Summary Cards -->
+                <div class="row text-center mb-4">
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-success text-white shadow-sm">
+                            <div class="card-body">
+                                <h6>{{ t('budget_income', default='Income') }}</h6>
+                                <h4>{{ latest_budget.get('income', '0.00') }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-danger text-white shadow-sm">
+                            <div class="card-body">
+                                <h6>{{ t('budget_expenses', default='Total Expenses') }}</h6>
+                                <h4>{{ latest_budget.get('fixed_expenses', '0.00') }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-{{ 'success' if latest_budget.get('surplus_deficit', 0)|float >= 0 else 'warning' }} text-white shadow-sm">
+                            <div class="card-body">
+                                <h6>{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</h6>
+                                <h4>{{ latest_budget.get('surplus_deficit_formatted', '0.00') }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expense Breakdown Chart -->
+                {% if categories and categories|length > 0 %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6>{{ t('budget_expense_breakdown', default='Expense Breakdown') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="expenseChart" height="200"></canvas>
+                            <div id="chartError" class="text-danger mt-2" style="display: none;">
+                                {{ t('budget_chart_error', default='Error rendering expense chart. Please try again later.') }}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Budget History -->
+                {% if budgets %}
+                    <div class="card">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ t('budget_history', default='Budget History') }}</h6>
+                            <a href="{{ url_for('budget.manage') }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit me-1"></i>{{ t('budget_manage_budgets', default='Manage Budgets') }}
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ t('budget_date', default='Date') }}</th>
+                                            <th>{{ t('budget_income', default='Income') }}</th>
+                                            <th>{{ t('budget_expenses', default='Expenses') }}</th>
+                                            <th>{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for budget_id, budget in budgets.items() %}
+                                            <tr>
+                                                <td>{{ budget.get('created_at', 'N/A') }}</td>
+                                                <td>{{ budget.get('income', '0.00') }}</td>
+                                                <td>{{ budget.get('fixed_expenses', '0.00') }}</td>
+                                                <td class="{% if budget.get('surplus_deficit', 0)|float >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                                    {{ budget.get('surplus_deficit_formatted', '0.00') }}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Current Budget Details -->
+                {% if current_user.is_authenticated %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">{{ t('budget_current_budget', default='Current Budget') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>{{ t('budget_user_email', default='Associated Email') }}:</strong><br>{{ latest_budget.get('user_email', 'N/A') }}</p>
+                            <hr>
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <small class="text-muted">{{ t('budget_savings_goal', default='Savings Goal') }}</small>
+                                    <div class="h6">{{ latest_budget.get('savings_goal', '0.00') }}</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">{{ t('budget_dependents_support', default='Dependents') }}</small>
+                                    <div class="h6">{{ latest_budget.get('dependents', '0') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Insights -->
+                {% if insights %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6>{{ t('budget_insights', default='Insights') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                {% for insight in insights %}
+                                    <li class="list-group-item border-0 px-0">
+                                        <i class="fas fa-lightbulb text-warning me-2"></i>{{ t(insight, default=insight) }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Tips -->
+                {% if tips %}
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6>{{ t('budget_tips', default='Tips to Manage Your Budget') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                {% for tip in tips %}
+                                    <li class="list-group-item border-0 px-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>{{ t(tip, default=tip) }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-chart-pie fa-4x mb-3 text-muted"></i>
+            <h4 class="text-muted">{{ t('budget_no_data', default='No budget data available') }}</h4>
+            <p class="text-muted">{{ t('budget_get_started_description', default='Create your first budget to see your financial overview and start managing your finances effectively') }}</p>
+            <a href="{{ url_for('budget.new') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>{{ t('budget_create_first_budget', default='Create Your First Budget') }}
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="mb-3">{{ t('budget_quick_actions', default='Quick Actions') }}</h6>
+                    <a href="{{ url_for('budget.new') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus me-1"></i>{{ t('budget_create_budget', default='Create Budget') }}
+                    </a>
+                    <a href="{{ url_for('budget.manage') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>{{ t('budget_manage_budgets', default='Manage Budgets') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js rendering
+    const expenseChartCtx = document.getElementById('expenseChart');
+    if (expenseChartCtx) {
+        const categoriesData = {{ categories | tojson }};
+        if (categoriesData && Object.keys(categoriesData).length > 0) {
+            try {
+                const labels = Object.keys(categoriesData).map(key => key.charAt(0).toUpperCase() + key.slice(1));
+                const data = Object.values(categoriesData);
+
+                new Chart(expenseChartCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) {
+                                            label += new Intl.NumberFormat().format(context.parsed);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                document.getElementById('chartError').style.display = 'none';
+            } catch (error) {
+                console.error("Error drawing chart:", error);
+                document.getElementById('chartError').style.display = 'block';
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

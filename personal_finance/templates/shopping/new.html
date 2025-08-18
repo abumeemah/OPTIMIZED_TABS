@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ t('shopping_create_list', default='Create Shopping List') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% set tool_name = 'shopping_create_list' %}
+    {% set tool_icon = 'fa-plus-circle' %}
+    {% set subtitle = t('shopping_create_description', default='Start a new shopping list to organize your purchases') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('shopping.index') }}">{{ t('shopping_title', default='Shopping List Manager') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('shopping_create_list', default='Create List') }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fa-solid fa-cart-shopping me-2"></i>{{ t('shopping_create_list', default='Create New Shopping List') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('shopping.new') }}" id="createListForm" class="validate-form">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="action" value="create_list">
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">{{ t('general_list_name', default='List Name') }}</label>
+                            <input type="text" class="form-control" id="name" name="name" placeholder="{{ t('shopping_list_name_placeholder', default='e.g., Weekly Groceries') }}" required>
+                            <div class="invalid-feedback">{{ t('shopping_list_name_invalid', default='Please enter a valid list name') }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="budget" class="form-label">{{ t('general_budget', default='Budget') }}</label>
+                            <input type="number" class="form-control" id="budget" name="budget" step="0.01" min="0" placeholder="{{ t('shopping_budget_placeholder', default='e.g., 100000.00') }}" required>
+                            <div class="invalid-feedback">{{ t('shopping_budget_required', default='Budget is required') }}</div>
+                            <small id="budget_help" class="form-text text-muted">{{ t('shopping_budget_help', default='Enter your budget (e.g., 100,000 or 100,000.00)') }}</small>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('shopping.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>{{ t('general_back', default='Back') }}
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="createListSubmit">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <i class="fa-solid fa-plus me-2"></i>{{ t('shopping_create_list', default='Create List') }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Tips Sidebar -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>{{ t('shopping_tips', default='Tips') }}</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('shopping_tip_plan_ahead', default='Plan your shopping list ahead to avoid impulse buys') }}</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('shopping_tip_compare_prices', default='Compare prices across stores to save money') }}</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('shopping_tip_bulk_buy', default='Buy non-perishable items in bulk to reduce costs') }}</li>
+                        <li class="mb-2"><i class="fas fa-check-circle text-success me-2"></i>{{ t('shopping_tip_check_sales', default='Check for sales or discounts before shopping') }}</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Budget Guidelines -->
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>{{ t('shopping_budget_guidelines', default='Budget Guidelines') }}</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled small">
+                        <li class="mb-2">• {{ t('shopping_guideline_groceries', default='Groceries: 10-15% of monthly income') }}</li>
+                        <li class="mb-2">• {{ t('shopping_guideline_household', default='Household items: 2-5% of monthly income') }}</li>
+                        <li class="mb-2">• {{ t('shopping_guideline_emergency', default='Keep 10% buffer for unexpected items') }}</li>
+                        <li class="mb-2">• {{ t('shopping_guideline_seasonal', default='Plan for seasonal price variations') }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const createListForm = document.getElementById('createListForm');
+    const submitButton = document.getElementById('createListSubmit');
+    const spinner = submitButton.querySelector('.spinner-border');
+
+    // Form Submission and Validation
+    createListForm.addEventListener('submit', function(event) {
+        if (!this.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Find first invalid field and focus it
+            const firstInvalid = this.querySelector(':invalid');
+            if (firstInvalid) {
+                firstInvalid.focus();
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        } else {
+            // Prevent double submission and show spinner
+            submitButton.disabled = true;
+            spinner.classList.remove('d-none');
+        }
+        this.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}

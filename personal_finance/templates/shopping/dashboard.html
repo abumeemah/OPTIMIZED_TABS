@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}
+{{ t('shopping_dashboard', default='Shopping Dashboard') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% set tool_name = 'shopping_dashboard' %}
+    {% set tool_icon = 'fa-chart-line' %}
+    {% set subtitle = t('shopping_dashboard_description', default='View your shopping overview, budgets, and spending insights') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('shopping.index') }}">{{ t('shopping_title', default='Shopping List Manager') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('shopping_dashboard', default='Dashboard') }}</li>
+        </ol>
+    </nav>
+
+    {% if lists_data %}
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card bg-primary text-white shadow-sm">
+                    <div class="card-body">
+                        <h6>{{ t('shopping_total_budget', default='Total Budget') }}</h6>
+                        <h4 class="mb-0">{{ total_budget }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-success text-white shadow-sm">
+                    <div class="card-body">
+                        <h6>{{ t('shopping_total_spent', default='Total Spent') }}</h6>
+                        <h4 class="mb-0">{{ total_spent }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-info text-white shadow-sm">
+                    <div class="card-body">
+                        <h6>{{ t('shopping_active_lists', default='Active Lists') }}</h6>
+                        <h4 class="mb-0">{{ active_lists }}</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card bg-secondary text-white shadow-sm">
+                    <div class="card-body">
+                        <h6>{{ t('shopping_completed_lists', default='Completed Lists') }}</h6>
+                        <h4 class="mb-0">{{ completed_lists }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Category Breakdown Chart -->
+                {% if categories and categories|length > 0 %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6>{{ t('shopping_category_breakdown', default='Category Breakdown') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="categoryChart" height="200"></canvas>
+                            <div id="chartError" class="text-danger mt-2" style="display: none;">
+                                {{ t('shopping_chart_error', default='Error rendering category chart. Please try again later.') }}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Shopping Lists Overview -->
+                <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">{{ t('shopping_recent_lists', default='Recent Shopping Lists') }}</h6>
+                        <a href="{{ url_for('shopping.manage') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-list me-1"></i>{{ t('shopping_manage_lists', default='Manage Lists') }}
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for list_data in lists_data %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card border">
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="card-title mb-0">{{ list_data.name }}</h6>
+                                                <span class="badge bg-{{ 'success' if list_data.status == 'completed' else 'primary' }}">
+                                                    {{ t('shopping_status_' + list_data.status, default=list_data.status.title()) }}
+                                                </span>
+                                            </div>
+                                            <div class="row text-center mb-2">
+                                                <div class="col-4">
+                                                    <small class="text-muted d-block">{{ t('shopping_budget', default='Budget') }}</small>
+                                                    <strong>{{ "%.2f"|format(list_data.budget) }}</strong>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="text-muted d-block">{{ t('shopping_spent', default='Spent') }}</small>
+                                                    <strong>{{ "%.2f"|format(list_data.total_spent) }}</strong>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="text-muted d-block">{{ t('shopping_items', default='Items') }}</small>
+                                                    <strong>{{ list_data.bought_items }}/{{ list_data.items_count }}</strong>
+                                                </div>
+                                            </div>
+                                            <div class="progress mb-2" style="height: 6px;">
+                                                <div class="progress-bar" role="progressbar" style="width: {{ list_data.progress }}%" aria-valuenow="{{ list_data.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                            <small class="text-muted">{{ "%.1f"|format(list_data.progress) }}% {{ t('shopping_complete', default='complete') }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Insights -->
+                {% if insights %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6>{{ t('shopping_insights', default='Shopping Insights') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                {% for insight in insights %}
+                                    <li class="list-group-item border-0 px-0">
+                                        <i class="fas fa-lightbulb text-warning me-2"></i>{{ t(insight, default=insight) }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Tips -->
+                {% if tips %}
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h6>{{ t('shopping_tips', default='Shopping Tips') }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                {% for tip in tips %}
+                                    <li class="list-group-item border-0 px-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>{{ t(tip, default=tip) }}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-cart-shopping fa-4x mb-3 text-muted"></i>
+            <h4 class="text-muted">{{ t('shopping_no_lists_empty_state', default='No shopping lists created yet') }}</h4>
+            <p class="text-muted">{{ t('shopping_get_started_description', default='Create your first shopping list to start organizing your purchases') }}</p>
+            <a href="{{ url_for('shopping.new') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>{{ t('shopping_create_first_list', default='Create Your First List') }}
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="mb-3">{{ t('shopping_quick_actions', default='Quick Actions') }}</h6>
+                    <a href="{{ url_for('shopping.new') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus me-1"></i>{{ t('shopping_create_list', default='Create List') }}
+                    </a>
+                    <a href="{{ url_for('shopping.manage') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-1"></i>{{ t('shopping_manage_lists', default='Manage Lists') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js rendering
+    const categoryChartCtx = document.getElementById('categoryChart');
+    if (categoryChartCtx) {
+        const categoriesData = {{ categories | tojson }};
+        if (categoriesData && Object.keys(categoriesData).length > 0) {
+            try {
+                const labels = Object.keys(categoriesData).map(key => key.charAt(0).toUpperCase() + key.slice(1));
+                const data = Object.values(categoriesData);
+
+                new Chart(categoryChartCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) {
+                                            label += new Intl.NumberFormat().format(context.parsed);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                document.getElementById('chartError').style.display = 'none';
+            } catch (error) {
+                console.error("Error drawing chart:", error);
+                document.getElementById('chartError').style.display = 'block';
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

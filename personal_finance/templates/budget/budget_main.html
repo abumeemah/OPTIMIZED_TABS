@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+{% block title %}{{ t('budget_dashboard', default='Budget Dashboard') }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    {% set tool_name = 'budget_dashboard' %}
+    {% set tool_icon = 'fa-chart-pie' %}
+    {% set subtitle = t('budget_dashboard_description', default='View your financial overview, insights, and budget performance') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('budget.index') }}">{{ t('budget_title', default='Budget Planner') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('budget_dashboard', default='Dashboard') }}</li>
+        </ol>
+    </nav>
+
+    <ul class="nav nav-tabs mb-4" id="budgetTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if active_tab == 'create-budget' else '' }}" id="create-budget-tab" data-bs-toggle="tab" data-bs-target="#create-budget" type="button" role="tab" aria-controls="create-budget" aria-selected="{{ 'true' if active_tab == 'create-budget' else 'false' }}">
+                <i class="fas fa-plus"></i> {{ t('budget_create_budget', default='Create Budget') }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if active_tab == 'dashboard' else '' }}" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="{{ 'true' if active_tab == 'dashboard' else 'false' }}">
+                <i class="fas fa-chart-line"></i> {{ t('budget_dashboard', default='Dashboard') }}
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="budgetTabContent">
+        <div class="tab-pane fade {{ 'show active' if active_tab == 'create-budget' else '' }}" id="create-budget" role="tabpanel" aria-labelledby="create-budget-tab">
+            <form method="POST" action="{{ url_for('budget.main') }}" id="budgetForm" class="validate-form">
+                {{ form.csrf_token }}
+                <input type="hidden" name="action" value="create_budget">
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-money-bill-wave"></i> {{ t('budget_monthly_income', default='Monthly Income') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="{{ form.income.id }}" class="form-label">{{ t('budget_monthly_income', default='Monthly Income') }}</label>
+                            {{ form.income(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="500000.00", required=True, value=form.income.data or '') }}
+                            <div class="invalid-feedback">{{ t('budget_income_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                            <small id="income_help" class="form-text text-muted">{{ t('budget_income_help', default='Enter your monthly income (e.g., 500000.00)') }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-receipt"></i> {{ t('budget_expenses', default='Monthly Expenses') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.housing.id }}" class="form-label">{{ t('budget_housing_rent', default='Housing/Rent') }}</label>
+                                {{ form.housing(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="100000.00", required=True, value=form.housing.data or '') }}
+                                <div class="invalid-feedback">{{ t('budget_housing_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                <small id="housing_help" class="form-text text-muted">{{ t('budget_housing_help', default='Enter housing cost (e.g., 100000.00)') }}</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.food.id }}" class="form-label">{{ t('budget_food', default='Food') }}</label>
+                                {{ form.food(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="50000.00", required=True, value=form.food.data or '') }}
+                                <div class="invalid-feedback">{{ t('budget_food_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                <small id="food_help" class="form-text text-muted">{{ t('budget_food_help', default='Enter food cost (e.g., 50000.00)') }}</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.transport.id }}" class="form-label">{{ t('budget_transport', default='Transport') }}</label>
+                                {{ form.transport(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="20000.00", required=True, value=form.transport.data or '') }}
+                                <div class="invalid-feedback">{{ t('budget_transport_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                <small id="transport_help" class="form-text text-muted">{{ t('budget_transport_help', default='Enter transport cost (e.g., 20000.00)') }}</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.dependents.id }}" class="form-label">{{ t('budget_dependents_support', default='Dependents Support') }}</label>
+                                {{ form.dependents(class="form-control", type="number", min="0", max="100", step="1", placeholder="3", required=True, value=form.dependents.data or '') }}
+                                <div class="invalid-feedback">{{ t('budget_dependents_invalid', default='Please enter a valid integer between 0 and 100') }}</div>
+                                <small id="dependents_help" class="form-text text-muted">{{ t('budget_dependents_help', default='Enter number of dependents (e.g., 3)') }}</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.miscellaneous.id }}" class="form-label">{{ t('budget_miscellaneous', default='Miscellaneous') }}</label>
+                                {{ form.miscellaneous(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", required=True, value=form.miscellaneous.data or '') }}
+                                <div class="invalid-feedback">{{ t('budget_miscellaneous_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                <small id="miscellaneous_help" class="form-text text-muted">{{ t('budget_miscellaneous_help', default='Enter miscellaneous cost (e.g., 10000.00)') }}</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.others.id }}" class="form-label">{{ t('budget_others', default='Others') }}</label>
+                                {{ form.others(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="15000.00", required=True, value=form.others.data or '') }}
+                                <div class="invalid-feedback">{{ t('budget_others_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                <small id="others_help" class="form-text text-muted">{{ t('budget_others_help', default='Enter other expenses (e.g., 15000.00)') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-piggy-bank"></i> {{ t('budget_savings_goal', default='Savings Goal') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="{{ form.savings_goal.id }}" class="form-label">{{ t('budget_savings_goal', default='Monthly Savings Goal') }}</label>
+                            {{ form.savings_goal(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="50000.00", required=True, value=form.savings_goal.data or '') }}
+                            <div class="invalid-feedback">{{ t('budget_savings_goal_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                            <small id="savings_goal_help" class="form-text text-muted">{{ t('budget_savings_goal_help', default='Enter your monthly savings goal (e.g., 50000.00)') }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-calculator"></i> {{ t('budget_calculate_budget', default='Calculate Budget') }}
+                </button>
+            </form>
+        </div>
+
+        <div class="tab-pane fade {{ 'show active' if active_tab == 'dashboard' else '' }}" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> {{ t('budget_summary', default='Financial Summary') }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if latest_budget and latest_budget.get('id') %}
+                        {% if current_user.is_authenticated %}
+                            <div class="mb-3">
+                                <p><strong>{{ t('budget_user_email', default='Associated Email') }}:</strong> {{ latest_budget.get('user_email', 'N/A') }}</p>
+                            </div>
+                        {% endif %}
+                        <div class="row text-center mb-4">
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body">
+                                        <h6>{{ t('budget_income', default='Income') }}</h6>
+                                        <h4>{{ latest_budget.get('income', '0.00') }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body">
+                                        <h6>{{ t('budget_expenses', default='Total Expenses') }}</h6>
+                                        <h4>{{ latest_budget.get('fixed_expenses', '0.00') }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-{{ 'success' if latest_budget.get('surplus_deficit', 0)|float >= 0 else 'warning' }} text-white">
+                                    <div class="card-body">
+                                        <h6>{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</h6>
+                                        <h4>{{ latest_budget.get('surplus_deficit_formatted', '0.00') }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if categories and categories|length > 0 %}
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6>{{ t('budget_expense_breakdown', default='Expense Breakdown') }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="expenseChart" height="200"></canvas>
+                                    <div id="chartError" class="text-danger mt-2" style="display: none;">
+                                        {{ t('budget_chart_error', default='Error rendering expense chart. Please try again later.') }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center">
+                                <p>{{ t('budget_no_expenses', default='No expense data available for the chart.') }}</p>
+                            </div>
+                        {% endif %}
+
+                        {% if insights %}
+                            <div class="mt-4">
+                                <h6>{{ t('budget_insights', default='Insights') }}</h6>
+                                <ul class="list-unstyled">
+                                    {% for insight in insights %}
+                                        <li><i class="fas fa-lightbulb text-warning"></i> {{ t(insight, default=insight) }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        {% if tips %}
+                            <div class="mt-4">
+                                <h6>{{ t('budget_tips', default='Tips to Manage Your Budget') }}</h6>
+                                <ul class="list-unstyled">
+                                    {% for tip in tips %}
+                                        <li><i class="fas fa-check-circle text-success"></i> {{ t(tip, default=tip) }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        {% if budgets %}
+                            <div class="card mt-4">
+                                <div class="card-header">
+                                    <h6>{{ t('budget_history', default='Budget History') }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>{{ t('budget_date', default='Date') }}</th>
+                                                    <th>{{ t('budget_income', default='Income') }}</th>
+                                                    <th>{{ t('budget_expenses', default='Expenses') }}</th>
+                                                    <th>{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</th>
+                                                    <th>{{ t('general_actions', default='Actions') }}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for budget_id, budget in budgets.items() %}
+                                                    <tr>
+                                                        <td>{{ budget.get('created_at', 'N/A') | format_datetime }}</td>
+                                                        <td>{{ budget.get('income', '0.00') }}</td>
+                                                        <td>{{ budget.get('fixed_expenses', '0.00') }}</td>
+                                                        <td class="{% if budget.get('surplus_deficit', 0)|float >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                                            {{ budget.get('surplus_deficit_formatted', '0.00') }}
+                                                        </td>
+                                                        <td>
+                                                            <form method="POST" action="{{ url_for('budget.main') }}" style="display: inline;">
+                                                                {{ form.csrf_token }}
+                                                                <input type="hidden" name="budget_id" value="{{ budget_id }}">
+                                                                <input type="hidden" name="action" value="delete">
+                                                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('budget_confirm_delete', default='Are you sure you want to delete this budget?') | e }}');">
+                                                                    {{ t('general_delete', default='Delete') }}
+                                                                </button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="text-center">
+                                <p>{{ t('budget_no_history', default='No budget history available.') }}</p>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center">
+                            <i class="fas fa-chart-pie fa-3x mb-3 text-muted"></i>
+                            <p>{{ t('budget_no_data', default='No budget data available. Create your first budget to see your financial overview.') }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Simple form validation using HTML5 native validation
+    const form = document.getElementById('budgetForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Find first invalid field and focus it
+                const firstInvalid = form.querySelector(':invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            form.classList.add('was-validated');
+        });
+        
+        // Add real-time validation feedback
+        const inputs = form.querySelectorAll('input[type="number"]');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.checkValidity()) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                }
+            });
+        });
+    }
+
+    // Chart.js rendering
+    const expenseChartCtx = document.getElementById('expenseChart');
+    if (expenseChartCtx) {
+        const categoriesData = {{ categories | tojson }};
+        if (categoriesData && Object.keys(categoriesData).length > 0) {
+            try {
+                const labels = Object.keys(categoriesData).map(key => key.charAt(0).toUpperCase() + key.slice(1));
+                const data = Object.values(categoriesData);
+
+                new Chart(expenseChartCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed !== null) label += formatForDisplay(context.parsed, label.toLowerCase() === 'dependents support');
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                document.getElementById('chartError').style.display = 'none';
+            } catch (error) {
+                console.error("Error drawing chart:", error);
+                document.getElementById('chartError').style.display = 'block';
+            }
+        }
+    }
+
+    // Tab persistence with sessionStorage
+    const validTabs = ['create-budget', 'dashboard'];
+    let savedTab = sessionStorage.getItem('activeBudgetTab') || '{{ active_tab }}';
+    if (!validTabs.includes(savedTab)) {
+        savedTab = 'create-budget';
+    }
+    if (savedTab) {
+        const tabButton = document.getElementById(`${savedTab}-tab`);
+        if (tabButton) {
+            const bsTab = new bootstrap.Tab(tabButton);
+            bsTab.show();
+        }
+    }
+
+    document.querySelectorAll('#budgetTabs .nav-link').forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(e) {
+            const activeTabId = e.target.id.replace('-tab', '');
+            if (validTabs.includes(activeTabId)) {
+                sessionStorage.setItem('activeBudgetTab', activeTabId);
+                const url = new URL(window.location);
+                url.searchParams.set('tab', activeTabId);
+                window.history.replaceState({}, '', url);
+            }
+        });
+    });
+
+    // Copy referral link
+    window.copyReferralLink = function() {
+        const referralLink = document.getElementById('referralLink');
+        const value = referralLink.value;
+        if (value && value !== '{{ t('general_profile_no_referral', default='No referral link available.') | e }}') {
+            navigator.clipboard.writeText(value).then(() => {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    {{ t('general_profile_link_copied', default='Referral link copied to clipboard!') | e }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ t('general_close', default='Close') }}"></button>
+                `;
+                referralLink.parentNode.appendChild(alertDiv);
+                setTimeout(() => alertDiv.remove(), 3000);
+            }).catch(() => {
+                referralLink.select();
+                document.execCommand('copy');
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                alertDiv.innerHTML = `
+                    {{ t('general_profile_link_copied', default='Referral link copied to clipboard!') | e }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ t('general_close', default='Close') }}"></button>
+                `;
+                referralLink.parentNode.appendChild(alertDiv);
+                setTimeout(() => alertDiv.remove(), 3000);
+            });
+        } else {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-warning alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                {{ t('general_profile_no_referral', default='No referral link available.') | e }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ t('general_close', default='Close') }}"></button>
+            `;
+            referralLink.parentNode.appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 3000);
+        }
+    };
+});
+</script>
+{% endblock %}

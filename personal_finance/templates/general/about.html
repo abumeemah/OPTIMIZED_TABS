@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('general_about_ficore_africa', default='About FiCore Africa') }}{% endblock %}
+{% block content %}
+<main class="about-page">
+    <div class="container about-container mt-5">
+        <header class="about-header text-center">
+            <h1 class="about-title">{{ t('general_about_ficore_africa', default='About FiCore Africa') }}</h1>
+            <p class="about-subtitle">{{ t('general_empowering_financial_growth', default='Empowering financial growth across Africa with intuitive tools and knowledge') }}</p>
+        </header>
+
+        <section class="about-content mt-5">
+            <div class="info-box">
+                <i class="fas fa-exclamation-triangle"></i> {{ t('general_disclaimer', default='FiCore Africa is not a bank. We do not hold or move funds — we provide advisory and tracking tools only.') }}
+            </div>
+            <p class="about-learn-more">{{ t('general_learn_more_content', default='FiCore Africa is your all-in-one platform for personal finance, business management, and agent services. Our tools help you track budgets, bills, net worth, and financial health, manage business operations like debtors and inventory, and enable agents to onboard traders and facilitate transactions, all tailored for Africa’s unique financial landscape.') }}</p>
+        </section>
+
+        <section class="mission-statement mt-5">
+            <h3><i class="fas fa-globe-africa"></i> {{ t('general_our_mission', default='Our Mission') }}</h3>
+            <p>{{ t('general_mission_statement_content', default='To empower individuals, businesses, and agents across Africa with accessible financial tools and knowledge, fostering financial literacy, simplifying business operations, and driving economic growth.') }}</p>
+        </section>
+
+        <section class="vision-statement mt-5">
+            <h3><i class="fas fa-handshake"></i> {{ t('general_why_ficore_africa', default='Why FiCore Africa?') }}</h3>
+            <p>{{ t('general_vision_content', default='FiCore Africa was created to address the financial challenges faced by Africans, from personal budgeting to business management. By offering localized tools with Naira support, actionable insights, and a focus on financial literacy, we aim to unlock economic potential and build a prosperous future for the continent.') }}</p>
+            <ul class="why-list list-unstyled mt-3">
+                <li><i class="fas fa-check-circle"></i> {{ t('general_localized', default='Built for Africa with Naira support and regional insights') }}</li>
+                <li><i class="fas fa-check-circle"></i> {{ t('general_empowers', default='Empowers individuals, businesses, and agents with tailored tools') }}</li>
+                <li><i class="fas fa-check-circle"></i> {{ t('general_actionable', default='Actionable insights for smarter financial decisions') }}</li>
+                <li><i class="fas fa-check-circle"></i> {{ t('general_secure', default='Advisory-only platform – we don’t store or access your funds') }}</li>
+            </ul>
+        </section>
+
+        <section class="tools-overview mt-5">
+            <h3><i class="fas fa-tools"></i> {{ t('general_our_tools', default='Our Tools') }}</h3>
+            <p>{{ t('general_tools_desc', default='Explore our suite of tools designed for personal finance, business management, and agent services.') }}</p>
+            <div class="row g-4 mt-3">
+                <div class="col-md-4">
+                    <div class="card tool-card">
+                        <div class="card-body">
+                            <h4><i class="bi bi-calculator"></i> {{ t('budget_budget_planner', default='Budget Planner') }}</h4>
+                            <p>{{ t('budget_allocate_income', default='Plan and allocate your income across expense categories.') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card tool-card">
+                        <div class="card-body">
+                            <h4><i class="bi bi-receipt"></i> {{ t('bill_bill_planner', default='Bill Planner') }}</h4>
+                            <p>{{ t('bill_manage_bills', default='Track and manage your bills to stay on top of payments.') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card tool-card">
+                        <div class="card-body">
+                            <h4><i class="bi bi-heartbeat"></i> {{ t('financial_health_financial_health_score', default='Financial Health Score') }}</h4>
+                            <p>{{ t('financial_health_evaluate_finances', default='Assess your income, expenses, and debt for a clear financial picture.') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card tool-card">
+                        <div class="card-body">
+                            <h4><i class="bi bi-person-dash"></i> {{ t('general_debtors_creditors', default='Debtors & Creditors') }}</h4>
+                            <p>{{ t('general_debtors_creditors_desc', default='Track who owes you and what you owe with ease.') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card tool-card">
+                        <div class="card-body">
+                            <h4><i class="bi bi-box-seam"></i> {{ t('inventory_management', default='Inventory Management') }}</h4>
+                            <p>{{ t('inventory_desc', default='Monitor stock levels and inventory value for your business.') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card tool-card">
+                        <div class="card-body">
+                            <h4><i class="bi bi-person-plus"></i> {{ t('agents_register_trader', default='Register Traders') }}</h4>
+                            <p>{{ t('agents_register_trader_desc', default='Onboard new traders and manage their accounts.') }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta-section text-center mt-5">
+            <h3>{{ t('general_ready_to_start', default='Ready to Take Control of Your Finances?') }}</h3>
+            <p>{{ t('general_signup_prompt', default='Sign up today to access tools for personal finance, business management, or agent services.') }}</p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('users.signup', role='personal') }}" class="btn btn-primary btn-lg">{{ t('general_signup_personal', default='Personal Sign Up') }}</a>
+                <a href="{{ url_for('users.signup', role='trader') }}" class="btn btn-primary btn-lg">{{ t('general_signup_business', default='Business Sign Up') }}</a>
+                <a href="{{ url_for('users.signup', role='agent') }}" class="btn btn-primary btn-lg">{{ t('general_signup_agent', default='Agent Sign Up') }}</a>
+            </div>
+        </section>
+    </div>
+</main>
+{% endblock %}

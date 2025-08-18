@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% block title %}{{ t('general_welcome', default='Welcome to FiCore Africa') | e }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Welcome Section - Streamlined -->
+    <div class="section-card welcome-section-card text-center">
+        <h1 class="section-title">{{ t('general_welcome', default='Welcome to FiCore Africa') | e }}</h1>
+        <p class="text-muted">{{ t('general_ficore_desc', default='Africa\'s leading platform for personal finance, tailored for you.') | e }}</p>
+        
+        <!-- Initial Get Started Button -->
+        <div id="initial-cta" class="mb-3">
+            <button id="get-started-btn" class="btn btn-primary btn-lg" type="button" data-bs-toggle="collapse" data-bs-target="#auth-options" aria-expanded="false" aria-controls="auth-options" data-bs-title="{{ t('general_get_started_tooltip', default='Start your financial journey') | e }}">
+                {{ t('general_get_started', default='Get Started') | e }}
+                <i class="bi bi-chevron-down ms-2"></i>
+            </button>
+        </div>
+
+        <!-- Hidden Auth Options (revealed on Get Started click) -->
+        <div id="auth-options" class="btn-group btn-group-vertical d-md-flex mb-3 collapse">
+            <a href="{{ url_for('users.signup') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_signup_tooltip', default='Create your FiCore account') | e }}">
+                <i class="bi bi-person-plus me-2"></i>{{ t('general_signup', default='Sign Up') | e }}
+            </a>
+            <a href="{{ url_for('users.login') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_login_tooltip', default='Log in to your account') | e }}">
+                <i class="bi bi-box-arrow-in-right me-2"></i>{{ t('general_login', default='Log In') | e }}
+            </a>
+        </div>
+    </div>
+
+    <!-- Notifications Placeholder (Unauthenticated) -->
+    <div class="section-card notifications mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="section-title mb-0">{{ t('general_notifications', default='Notifications') | e }}</h3>
+            <a href="{{ url_for('users.signup') }}" class="btn btn-link btn-sm p-0 text-decoration-none">{{ t('general_signup_to_view_notifications', default='Sign Up to View Notifications') | e }}</a>
+        </div>
+        <div id="notificationList">
+            <div class="notification-card">
+                <div class="notification-item">
+                    <div class="notification-icon">
+                        <i class="bi bi-info-circle text-muted"></i>
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-description fw-semibold">{{ t('general_notifications_unavailable', default='Notifications available after signing up') | e }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Who We Serve -->
+    <div class="section-card mt-5">
+        <h3 class="section-title">{{ t('general_who_we_serve', default='Who We Serve') | e }}</h3>
+        <p class="text-muted">{{ t('general_who_we_serve_desc', default='FiCore empowers individuals with tailored personal finance tools.') | e }}</p>
+        <div class="row row-cols-1 row-cols-md-4 g-4">
+            <div class="col">
+                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5>{{ t('general_artisans', default='Artisans') | e }}</h5>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col">
+                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5>{{ t('general_professionals', default='Professionals') | e }}</h5>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col">
+                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5>{{ t('general_young_couples', default='Young Couples') | e }}</h5>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col">
+                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body">
+                            <h5>{{ t('general_modern_entrepreneurs', default='Modern Entrepreneurs') | e }}</h5>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explore Our Tools (Unauthenticated) -->
+    <div class="section-card mt-5">
+        <h3 class="section-title">{{ t('general_our_tools', default='Explore Our Tools') | e }}</h3>
+        <p class="text-muted">{{ t('general_tools_desc', default='Powerful tools to manage your personal finances effectively.') | e }}</p>
+        {% if explore_features_for_template %}
+            {% set categories = ['Personal'] %}
+            {% for category in categories %}
+                {% set category_tools = explore_features_for_template | selectattr('category', 'equalto', category) | list %}
+                {% if category_tools %}
+                    <h4>{{ t('general_' + category | lower + '_tools', default=category + ' Tools') | e }}</h4>
+                    <div class="row">
+                        {% for tool in category_tools %}
+                            {% if tool.get('label') in ['Budget', 'Bills', 'Shopping'] %}
+                            <div class="col-md-4 mb-3">
+                                <a href="{{ tool.get('url', url_for('users.login')) }}" class="tool-card-link">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5>{{ t(tool.get('label_key', ''), default=tool.get('label', 'Tool')) | e }}</h5>
+                                            <p>{{ t(tool.get('description_key', ''), default=tool.get('description', 'Description not available')) | e }}</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+            {% if not categories %}
+                <p class="text-muted">{{ t('general_no_tools_available', default='No tools available at the moment.') | e }}</p>
+            {% endif %}
+        {% else %}
+            <p class="text-muted">{{ t('general_no_tools_available', default='No tools available at the moment.') | e }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Why FiCore -->
+    <div class="section-card why-section mt-5">
+        <h2 class="section-title text-center"><i class="bi bi-info-circle-fill me-2 text-primary"></i>{{ t('general_why_ficore', default='Why FiCore Africa?') | e }}</h2>
+        <p class="text-center text-muted mb-4">{{ t('general_ficore_highlight', default='Africa\'s #1 Localized Personal Finance Platform') | e }}</p>
+        <div class="row row-cols-1 row-cols-md-4 g-4">
+            <div class="col">
+                <div class="why-item text-center">
+                    <p class="text-muted">
+
+                        {{ t('general_localized', default='Built for Africa with Naira support and regional insights') | e }}
+                    </p>
+                </div>
+            </div>
+            <div class="col">
+                <div class="why-item text-center">
+                    <p class="text-muted">
+
+                        {{ t('general_empowers', default='Empowers individuals with personal finance tools') | e }}
+                    </p>
+                </div>
+            </div>
+            <div class="col">
+                <div class="why-item text-center">
+                    <p class="text-muted">
+
+                        {{ t('general_actionable', default='Actionable insights for smarter financial decisions') | e }}
+                    </p>
+                </div>
+            </div>
+            <div class="col">
+                <div class="why-item text-center">
+                    <p class="text-muted">
+
+                        {{ t('general_secure', default='Advisory-only – we don\'t access your funds') | e }}
+                    </p>
+                </div>
+            </div>
+            <div class="text-center mt-4">
+                <span class="animated-counter display-5 fw-bold text-primary" data-count="150+">150+</span>
+                <span class="fs-5">{{ t('general_users_served', default='Users Served') | e }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Testimonials -->
+    <div class="section-card testimonials-section mt-5">
+        <h2 class="section-title text-center"><i class="bi bi-quote me-2 text-primary"></i>{{ t('general_testimonials', default='What Our Users Say') | e }}</h2>
+        <div id="testimonialCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <div class="testimonial text-center">
+                        <img src="{{ url_for('static', filename='img/default_avatar.png') | e }}" alt="{{ t('general_testimonial_avatar', default='User Avatar') | e }}" class="avatar-circle gradient-bg mx-auto mb-3" data-initials="MU">
+                        <p class="text-muted">{{ t('general_impressed_features', default='FiCore\'s budgeting and bill tracking tools are intuitive and perfect for managing my personal finances!') | e }}</p>
+                        <p class="name fw-bold">User, {{ t('general_personal_user', default='Personal User') | e }}</p>
+                    </div>
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#testimonialCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">{{ t('general_previous', default='Previous') | e }}</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#testimonialCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">{{ t('general_next', default='Next') | e }}</span>
+            </button>
+        </div>
+        <div class="text-center mt-4">
+            <a href="{{ url_for('general_bp.about') | e }}" class="btn btn-primary btn-sm" data-bs-toggle="tooltip" data-bs-title="{{ t('general_about_ficore_africa_tooltip', default='Learn more about FiCore Africa') | e }}">{{ t('general_about_ficore_africa', default='Learn More About Us') | e }}</a>
+        </div>
+    </div>
+
+    <!-- FAQ Section -->
+    <div class="section-card faq-section mt-5">
+        <h2 class="section-title text-center"><i class="bi bi-question-circle-fill me-2 text-primary"></i>{{ t('general_faq', default='Frequently Asked Questions') | e }}</h2>
+        <div class="accordion" id="faqAccordion">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqFundHandling">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFundHandling" aria-expanded="true" aria-controls="collapseFundHandling">
+                        {{ t('general_faq_fund_handling', default='Does FiCore store or manage my money?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseFundHandling" class="accordion-collapse collapse show" aria-labelledby="faqFundHandling" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_fund_handling_answer', default='No. FiCore provides advisory and tracking tools only. Your money stays with you.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqRoles">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRoles" aria-expanded="false" aria-controls="collapseRoles">
+                        {{ t('general_faq_roles', default='What types of users can use FiCore?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseRoles" class="accordion-collapse collapse" aria-labelledby="faqRoles" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_roles_answer', default='FiCore supports personal users with budgeting, bill tracking, and shopping management tools.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqFiCoreCredits">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFiCoreCredits" aria-expanded="false" aria-controls="collapseFiCoreCredits">
+                        {{ t('general_faq_ficore_credits', default='What are FiCore Credits (FCs)?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseFiCoreCredits" class="accordion-collapse collapse" aria-labelledby="faqFiCoreCredits" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_ficore_credits_answer', default='FCs are in-app points used to access certain features on the FiCore platform, like creating budgets or tracking bills. They are not money or cryptocurrency.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqTransferFCs">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTransferFCs" aria-expanded="false" aria-controls="collapseTransferFCs">
+                        {{ t('general_faq_transfer_fcs', default='Can I transfer FCs to other users?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseTransferFCs" class="accordion-collapse collapse" aria-labelledby="faqTransferFCs" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_transfer_fcs_answer', default='No. FCs are non-transferable and tied to your personal account to avoid misuse and regulatory concerns.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqGetMoreFCs">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGetMoreFCs" aria-expanded="false" aria-controls="collapseGetMoreFCs">
+                        {{ t('general_faq_get_more_fcs', default='How do I get more FCs?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseGetMoreFCs" class="accordion-collapse collapse" aria-labelledby="faqGetMoreFCs" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_get_more_fcs_answer', default='You can add more FCs through your FiCore Wallet using available payment options. Look for the "Get More FCs" button in your dashboard.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqUseFCs">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUseFCs" aria-expanded="false" aria-controls="collapseUseFCs">
+                        {{ t('general_faq_use_fcs', default='What can I use FCs for?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseUseFCs" class="accordion-collapse collapse" aria-labelledby="faqUseFCs" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_use_fcs_answer', default='FCs are used for actions like creating budgets, tracking bills, and managing shopping lists.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqFCsExpiration">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFCsExpiration" aria-expanded="false" aria-controls="collapseFCsExpiration">
+                        {{ t('general_faq_fcs_expiration', default='Do FCs expire?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseFCsExpiration" class="accordion-collapse collapse" aria-labelledby="faqFCsExpiration" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_fcs_expiration_answer', default='FCs do not expire unless stated otherwise. Check your terms of use for details.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqFCsRefundable">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFCsRefundable" aria-expanded="false" aria-controls="collapseFCsRefundable">
+                        {{ t('general_faq_fcs_refundable', default='Are FCs refundable?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseFCsRefundable" class="accordion-collapse collapse" aria-labelledby="faqFCsRefundable" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_fcs_refundable_answer', default='No, FCs are non-refundable once used. Be sure before using them for any action.') | e }}
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="faqFCsRegulated">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFCsRegulated" aria-expanded="false" aria-controls="collapseFCsRegulated">
+                        {{ t('general_faq_fcs_regulated', default='Are FCs regulated or considered money?') | e }}
+                    </button>
+                </h3>
+                <div id="collapseFCsRegulated" class="accordion-collapse collapse" aria-labelledby="faqFCsRegulated" data-bs-parent="#faqAccordion">
+                    <div class="accordion-body">
+                        {{ t('general_faq_fcs_regulated_answer', default='No. FCs are not a financial product, currency, or security. They are simply digital credits for accessing FiCore tools.') | e }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to Action -->
+    <div class="section-card mt-5 text-center">
+        <h3 class="section-title">{{ t('general_ready_to_start', default='Ready to Take Control of Your Finances?') | e }}</h3>
+        <p class="text-muted">{{ t('general_signup_prompt', default='Sign up today to access tools for personal finance.') | e }}</p>
+        <div class="btn-group btn-group-vertical d-md-flex mb-3">
+            <a href="{{ url_for('users.signup') }}" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_get_started_tooltip', default='Start your financial journey') | e }}">{{ t('general_get_started', default='Get Started') | e }}</a>
+            <a href="{{ url_for('users.signup') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_signup_personal_tooltip', default='Sign up for personal finance tools') | e }}">{{ t('general_signup_personal', default='Personal Sign Up') | e }}</a>
+            <a href="{{ url_for('users.login') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_login_tooltip', default='Log in to your account') | e }}">{{ t('general_login', default='Log In') | e }}</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.section-card {
+    padding: 2rem;
+    border-radius: 0.5rem;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+.welcome-section-card {
+    margin-top: 5rem; /* Adjust this value based on header height */
+}
+.section-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+.tool-card-link {
+    text-decoration: none;
+    color: inherit;
+}
+.card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.5rem;
+    transition: transform 0.2s, background 0.3s, box-shadow 0.3s;
+}
+.card:hover {
+    transform: translateY(-5px);
+    background: #bee3f8;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    cursor: pointer;
+}
+.notification-card {
+    border-bottom: 1px solid #e9ecef;
+    padding: 0.75rem 0;
+}
+.notification-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.notification-icon {
+    font-size: 1.25rem;
+}
+.notification-content {
+    flex-grow: 1;
+}
+.notification-description {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.notification-time {
+    font-size: 0.8rem;
+}
+/* Ensure tooltips don't interfere with navbar */
+[data-bs-toggle="tooltip"] {
+    z-index: 1000; /* Lower than navbar (z-index: 1020) */
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Define translations object safely
+    const translations = {
+        'just_now': {{ t('general_just_now', default='Just now') | tojson }},
+        'minutes_ago': {{ t('general_minutes_ago', default='m ago') | tojson }},
+        'hours_ago': {{ t('general_hours_ago', default='h ago') | tojson }},
+        'days_ago': {{ t('general_days_ago', default='d ago') | tojson }},
+        'no_notifications': {{ t('general_no_notifications', default='No notifications') | tojson }},
+        'check_back_later': {{ t('general_check_back_later', default='Check back later') | tojson }}
+    };
+
+    console.log('Rendered translations:', translations);
+
+    // Initialize tooltips with explicit touch handling
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+        new bootstrap.Tooltip(tooltipTriggerEl, {
+            trigger: 'hover focus', // Avoid click events to prevent interference with navbar
+            container: 'body' // Ensure tooltips don't affect navbar layout
+        });
+    });
+
+    // Debug icons
+    document.querySelectorAll('.bi').forEach(icon => {
+        if (!icon.className.includes('bi-')) {
+            console.warn('Invalid or missing Bootstrap Icon class:', icon.className);
+        }
+    });
+
+    // Initialize Bootstrap carousel for testimonials
+    const carousel = document.getElementById('testimonialCarousel');
+    if (carousel) {
+        try {
+            new bootstrap.Carousel(carousel, {
+                interval: 5000,
+                ride: 'carousel',
+                touch: true // Ensure touch support for carousel
+            });
+        } catch (error) {
+            console.error('Failed to initialize carousel:', error);
+        }
+    }
+
+    // Animated counter for users served
+    const counter = document.querySelector('.animated-counter');
+    if (counter) {
+        const target = counter.getAttribute('data-count') || '0';
+        if (target !== '0') {
+            counter.textContent = target; // Directly set to 150+ since it's a string
+        } else {
+            counter.textContent = '0'; // Explicitly set to 0 if no users
+        }
+    }
+
+    // Enhanced navbar touch handling
+    const navbarToggler = document.querySelector('.navbar-toggler');
+    const navbarCollapse = document.querySelector('#navbarNav');
+    if (navbarToggler && navbarCollapse) {
+        // Ensure navbar closes on link click
+        document.querySelectorAll('.navbar-nav .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (navbarCollapse.classList.contains('show')) {
+                    navbarToggler.click(); // Programmatically close navbar
+                }
+            });
+        });
+
+        // Handle touch outside navbar to close
+        document.addEventListener('touchstart', (event) => {
+            if (!navbarCollapse.contains(event.target) && !navbarToggler.contains(event.target) && navbarCollapse.classList.contains('show')) {
+                navbarToggler.click();
+            }
+        });
+
+        // Debug navbar toggle state
+        navbarCollapse.addEventListener('show.bs.collapse', () => {
+            console.log('Navbar opened');
+            navbarToggler.setAttribute('aria-expanded', 'true');
+        });
+        navbarCollapse.addEventListener('hide.bs.collapse', () => {
+            console.log('Navbar closed');
+            navbarToggler.setAttribute('aria-expanded', 'false');
+        });
+    } else {
+        console.warn('Navbar toggler or collapse element not found');
+    }
+
+    // Format time ago function
+    window.formatTimeAgo = function(timestamp) {
+        const now = new Date();
+        const time = new Date(timestamp);
+        const diffInSeconds = Math.floor((now - time) / 1000);
+        if (diffInSeconds < 60) return translations.just_now;
+        if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + ' ' + translations.minutes_ago;
+        if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + ' ' + translations.hours_ago;
+        return Math.floor(diffInSeconds / 86400) + ' ' + translations.days_ago;
+    };
+});
+</script>
+{% endblock %}

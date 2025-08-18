@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ t('credits_info_title', default='What Are Ficore Credits?') | e }} - FiCore{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="page-title">
+        <h1>{{ t('credits_info_title', default='What Are Ficore Credits?') | e }}</h1>
+        <small class="subtext">{{ t('credits_wallet_subtext', default='In-App Credits for Your Financial Journey') | e }}</small>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <p>{{ t('credits_info_description', default='Ficore Credits (FCs) are digital points used within the FiCore app to access features like adding debtors, generating financial reports, creating budgets, or unlocking premium content.') | e }}</p>
+            
+            <h2>{{ t('credits_info_what_fcs_do', default='What You Can Do with FCs') | e }}</h2>
+            <ul>
+                <li>{{ t('credits_info_actions', default='Perform key actions such as recording sales, managing expenses, or tracking debts.') | e }}</li>
+                <li>{{ t('credits_info_unlock_features', default='Access advanced learning modules or download detailed financial reports.') | e }}</li>
+                <li>{{ t('credits_info_personalize', default='Tailor your app experience by unlocking tools and features suited to your financial goals.') | e }}</li>
+            </ul>
+            
+            <h2>{{ t('credits_info_what_fcs_cannot_do', default='What FCs Cannot Do') | e }}</h2>
+            <ul>
+                <li>{{ t('credits_info_not_money', default='FCs are not currency and cannot be transferred, exchanged, or withdrawn as cash.') | e }}</li>
+                <li>{{ t('credits_info_no_value', default='FCs have no monetary value outside the FiCore app and do not earn interest.') | e }}</li>
+                <li>{{ t('credits_info_no_trading', default='FCs cannot be shared, traded with other users, or used as an investment.') | e }}</li>
+            </ul>
+            
+            <h2>{{ t('credits_info_pricing', default='Ficore Credits Pricing') | e }}</h2>
+            <p>{{ t('credits_info_pricing_details', default='Ficore Credits are priced at N50 per 1 FC, with a minimum purchase of 10 FCs for N500.') | e }}</p>
+            <ul>
+                <li>{{ t('credits_info_price_10', default='10 FCs: N500') | e }}</li>
+                <li>{{ t('credits_info_price_50', default='50 FCs: N2,500') | e }}</li>
+                <li>{{ t('credits_info_price_100', default='100 FCs: N5,000') | e }}</li>
+            </ul>
+            
+            <h2>{{ t('credits_info_how_to_get', default='How to Purchase FCs') | e }}</h2>
+            <p>{{ t('credits_info_request_process', default='To acquire more FCs, submit a request specifying your desired amount and payment method. You must upload a payment receipt, which will be reviewed by an admin or agent. Upon approval, the credits will be added to your account.') | e }}</p>
+            
+            <p><strong>{{ t('general_note', default='Note') | e }}:</strong> {{ t('credits_info_note', default='FCs are exclusive to your FiCore account. Use them strategically to enhance your app experience.') | e }}</p>
+            
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('credits.history') | e }}" class="btn btn-primary" aria-label="{{ t('credits_your_wallet', default='View Your Wallet') | e }}">{{ t('credits_your_wallet', default='View Your Wallet') | e }}</a>
+                <a href="{{ url_for('credits.request_credits') | e }}" class="btn btn-primary" aria-label="{{ t('credits_request_credits', default='Request Ficore Credits') | e }}">{{ t('credits_request_credits', default='Request Ficore Credits') | e }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

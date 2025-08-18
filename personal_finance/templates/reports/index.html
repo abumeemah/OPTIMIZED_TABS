@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ t('reports_title', default='Reports') }} - FiCore{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="page-title mb-4">
+        <h1>{{ t('reports_title', default='Reports') }}</h1>
+        <small class="subtext">{{ t('reports_personal_finance_subtitle', default='Personal Finance Reports') }}</small>
+    </div>
+    
+    <div class="row g-4">
+        <!-- Shopping Report Card (for personal users) -->
+        {% if current_user.role == 'personal' %}
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ url_for('reports.shopping') }}" class="text-decoration-none">
+                <div class="card h-100 report-card">
+                    <div class="card-body d-flex flex-column">
+                        <div class="report-icon mb-3">
+                            <i class="fas fa-cart-shopping text-primary"></i>
+                        </div>
+                        <h5 class="card-title">{{ t('reports_shopping', default='Shopping Report') }}</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            {{ t('shopping_report_description', default='Review your shopping lists, items, and suggestions for budgeting.') }}
+                        </p>
+                        <div class="mt-auto">
+                            <span class="btn btn-outline-primary btn-sm">{{ t('view_report', default='View Report') }} <i class="fas fa-arrow-right ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <!-- Budget Performance Report Card (for personal users) -->
+        <div class="col-md-6 col-lg-4">
+            <a href="{{ url_for('reports.budget_performance') }}" class="text-decoration-none">
+                <div class="card h-100 report-card">
+                    <div class="card-body d-flex flex-column">
+                        <div class="report-icon mb-3">
+                            <i class="fas fa-chart-bar text-info"></i>
+                        </div>
+                        <h5 class="card-title">{{ t('reports_budget_performance', default='Budget Performance Report') }}</h5>
+                        <p class="card-text text-muted flex-grow-1">
+                            {{ t('budget_performance_description', default='Compare actual performance against budgeted targets and forecasts.') }}
+                        </p>
+                        <div class="mt-auto">
+                            <span class="btn btn-outline-primary btn-sm">{{ t('view_report', default='View Report') }} <i class="fas fa-arrow-right ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

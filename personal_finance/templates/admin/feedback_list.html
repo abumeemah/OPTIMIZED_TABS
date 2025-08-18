@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin_dashboard', default='Admin Dashboard') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin_feedbacks_title', default='Feedbacks') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('admin_feedbacks_title', default='Feedbacks') }}</h2>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if feedbacks %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin_user_id', default='User ID') }}</th>
+                        <th>{{ t('admin_feedback', default='Feedback') }}</th>
+                        <th>{{ t('admin_timestamp', default='Timestamp') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feedback in feedbacks %}
+                    <tr>
+                        <td>{{ feedback.user_id }}</td>
+                        <td>{{ feedback.feedback }}</td>
+                        <td>{{ feedback.timestamp | format_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{{ t('admin_no_feedbacks', default='No feedback found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

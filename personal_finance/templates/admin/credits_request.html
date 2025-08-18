@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin_dashboard', default='Admin Dashboard') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.view_credit_requests') }}">{{ t('credits_requests_title', default='Pending Credit Requests') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('credits_manage_request_title', default='Manage Credit Request') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('credits_manage_request_title', default='Manage Credit Request') }}</h2>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <p><strong>{{ t('admin_user_id', default='User ID') }}:</strong> {{ request.user_id }}</p>
+            <p><strong>{{ t('credits_amount', default='Amount') }}:</strong> {{ request.amount }}</p>
+            <p><strong>{{ t('credits_status', default='Status') }}:</strong> {{ request.status }}</p>
+            <p><strong>{{ t('admin_created_at', default='Created At') }}:</strong> {{ request.created_at | format_date }}</p>
+            <p><strong>{{ t('ficore_credit_balance', default='Ficore Credit Balance') }}:</strong> {{ request.ficore_credit_balance }}</p>
+            {% if request.receipt_file_id %}
+            <p><strong>{{ t('credits_receipt', default='Receipt') }}:</strong> <a href="{{ url_for('credits.download_receipt', file_id=request.receipt_file_id) }}">{{ t('general_download', default='Download') }}</a></p>
+            {% endif %}
+
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">
+                    {{ form.status.label }}
+                    {{ form.status(class="form-select") }}
+                </div>
+                <button type="submit" class="btn btn-primary">{{ t('general_submit', default='Submit') }}</button>
+                <a href="{{ url_for('admin.view_credit_requests') }}" class="btn btn-secondary">{{ t('general_cancel', default='Cancel') }}</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

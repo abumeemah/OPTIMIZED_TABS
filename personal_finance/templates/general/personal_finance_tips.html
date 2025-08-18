@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{% extends 'base.html' %}
+{% block title %}{{ t('personal_finance_tips_title', default='Personal Finance Tips') }}{% endblock %}
+{% block content %}
+<div class="finance-tips-page py-5">
+    <div class="container">
+        <h1 class="text-center mb-4">{{ t('personal_finance_tips_title', default='Ficore\'s 10 Ultimate Tips') }}</h1>
+        <p class="text-center mb-5">{{ t('personal_finance_tips_intro', default='Master your finances with these essential tips from Ficore.') }}</p>
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="mb-4">{{ t('personal_finance_tips_subtitle', default='Ficore\'s 10 Ultimate Tips for Financial Success') }}</h2>
+                        <ol>
+                            <li><strong>{{ t('finance_tip_1', default='Track Every Naira') }}</strong>: {{ t('finance_tip_1_desc', default='What gets tracked gets managed.') }}</li>
+                            <li><strong>{{ t('finance_tip_2', default='Spend Less Than You Earn') }}</strong>: {{ t('finance_tip_2_desc', default='Always.') }}</li>
+                            <li><strong>{{ t('finance_tip_3', default='Set a Monthly Budget') }}</strong>: {{ t('finance_tip_3_desc', default='Don’t wing it.') }}</li>
+                            <li><strong>{{ t('finance_tip_4', default='Cut Impulse Buys') }}</strong>: {{ t('finance_tip_4_desc', default='Wait 24 hours before buying.') }}</li>
+                            <li><strong>{{ t('finance_tip_5', default='Automate Savings') }}</strong>: {{ t('finance_tip_5_desc', default='Treat savings like a bill.') }}</li>
+                            <li><strong>{{ t('finance_tip_6', default='Plan Your Shopping') }}</strong>: {{ t('finance_tip_6_desc', default='Go with a list, stick to it.') }}</li>
+                            <li><strong>{{ t('finance_tip_7', default='Review Your Debts') }}</strong>: {{ t('finance_tip_7_desc', default='Know what you owe.') }}</li>
+                            <li><strong>{{ t('finance_tip_8', default='Don’t Fear Small Starts') }}</strong>: {{ t('finance_tip_8_desc', default='N1,000 saved is better than 0.') }}</li>
+                            <li><strong>{{ t('finance_tip_9', default='Borrow with a Plan') }}</strong>: {{ t('finance_tip_9_desc', default='Not just because it’s available.') }}</li>
+                            <li><strong>{{ t('finance_tip_10', default='Use Tools That Help You') }}</strong>: {{ t('finance_tip_10_desc', default='Have a habit of using tools like Ficore.') }}</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{# No additional scripts needed, dark mode and language toggle are handled globally in base.html #}
+{% endblock %}

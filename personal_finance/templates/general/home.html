@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('page_title', default='Gida na Kuɗaɗen Kai Tsaye') }}{% endblock %}
+
+{% block content %}
+<div class="personal-page-container">
+    <noscript>
+        <div class="personal-no-js-warning">
+            {{ t('javascript_required', default='Ana buƙatar JavaScript don amfani da wannan dashboard. Da fatan za a kunna shi a cikin burauzarka.') }}
+        </div>
+    </noscript>
+
+    {% if current_user.is_authenticated %}
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+
+        <section class="personal-balance-display-card opay-green-bg">
+            <div class="personal-balance-header">
+                <span class="personal-balance-label">{{ t('ficore_credits', default='Ƙididdigar Ficore') }}</span>
+                <button class="btn btn-link personal-toggle-visibility-btn" onclick="toggleAmountVisibility()" data-bs-toggle="tooltip" data-bs-title="{{ t('toggle_amount_visibility', default='Canja ganin adadin kuɗi') }}">
+                    <i id="visibilityIcon" class="bi bi-eye"></i>
+                </button>
+            </div>
+            <div class="personal-balance-amount-wrapper">
+                <span class="personal-currency-symbol">FCs</span>
+                <span class="personal-amount-value" id="walletBalance" data-amount="0">0.00</span>
+            </div>
+            <div class="personal-balance-actions">
+                <a href="{{ url_for('credits.request_credits', _external=True) | e }}" class="personal-add-credits-btn">
+                    <i class="bi bi-plus-circle"></i> {{ t('add_credits', default='Ƙara Kudi') }}
+                </a>
+                <a href="{{ url_for('credits.history', _external=True) | e }}" class="personal-view-history-link">
+                    {{ t('view_history', default='Duba Tarihi') }} <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </section>
+
+        <section class="personal-section-card personal-recent-activity-opay">
+            <div class="personal-section-header-flex">
+                <h3 class="personal-section-title">{{ t('recent_activity', default='Ayyukan Kwanan Nan') }}</h3>
+                <a href="#" class="btn btn-link btn-sm p-0 text-decoration-none" id="viewAllActivities" onclick="toggleRecentActivities()">
+                    {{ t('view_all', default='Duba Duk') }}
+                </a>
+            </div>
+            <div id="recentActivityListLimited" class="personal-activity-list">
+                <div class="personal-recent-activity-item personal-no-activity">
+                    <div class="personal-activity-icon-wrapper">
+                        <i class="bi bi-info-circle text-muted"></i>
+                    </div>
+                    <div class="personal-activity-content-placeholder">
+                        <div class="personal-activity-description fw-semibold">{{ t('no_recent_activity', default='Babu ayyukan kwanan nan') }}</div>
+                        <div class="personal-activity-time text-muted">{{ t('start_activity', default='Fara da ƙara kasafin kuɗi ko kuɗi') }}</div>
+                    </div>
+                </div>
+            </div>
+            <div id="recentActivityListFull" class="personal-activity-list d-none">
+            </div>
+        </section>
+
+        <section class="personal-section-card personal-quick-actions-grid">
+            <h3 class="personal-section-title visually-hidden">{{ t('plan_your_spending_quick_actions', default='Quick Actions') }}</h3>
+            <div class="personal-actions-grid">
+                <a href="{{ url_for('budget.main', _external=True) | e }}" class="personal-quick-action-item personal-budget-management text-decoration-none" aria-label="{{ t('budget', default='Budget') | e }}">
+                    <div class="personal-action-icon-wrapper">
+                        <i class="bi bi-pie-chart personal-action-icon"></i>
+                    </div>
+                    <div class="personal-action-label">{{ t('budget', default='Budget') }}</div>
+                </a>
+                <a href="{{ url_for('bill.main', _external=True) | e }}" class="personal-quick-action-item personal-bills-management text-decoration-none" aria-label="{{ t('bills', default='Bills') | e }}">
+                    <div class="personal-action-icon-wrapper">
+                        <i class="bi bi-receipt personal-action-icon"></i>
+                    </div>
+                    <div class="personal-action-label">{{ t('bills', default='Bills') }}</div>
+                </a>
+                <a href="{{ url_for('shopping.main', _external=True) | e }}" class="personal-quick-action-item personal-shopping-management text-decoration-none" aria-label="{{ t('shopping', default='Shopping') | e }}">
+                    <div class="personal-action-icon-wrapper">
+                        <i class="bi bi-cart personal-action-icon"></i>
+                    </div>
+                    <div class="personal-action-label">{{ t('shopping', default='Shopping') }}</div>
+                </a>
+            </div>
+        </section>
+
+        <section class="personal-section-card personal-financial-snapshots-overview">
+            <h3 class="personal-section-title">{{ t('finance_snapshots', default='Bayanan Kuɗaɗe') }}</h3>
+            <div class="personal-snapshots-summary-grid">
+                <div class="personal-snapshot-item">
+                    <i class="bi bi-pie-chart text-primary"></i>
+                    <div class="personal-snapshot-content">
+                        <div class="personal-snapshot-label">{{ t('budget_status', default='Matsayin Kasafin Kuɗi') }}</div>
+                        <div class="personal-snapshot-value" id="budgetStatus" data-amount="0">
+                            <span class="personal-currency-symbol">₦</span><span class="personal-amount-value">0.00</span>
+                        </div>
+                        <div class="personal-status-indicator" id="budgetStatusLabel"></div>
+                    </div>
+                </div>
+                <div class="personal-snapshot-item">
+                    <i class="bi bi-receipt text-warning"></i>
+                    <div class="personal-snapshot-content">
+                        <div class="personal-snapshot-label">{{ t('upcoming_bills', default='Kuɗin da ke Jiran Biya') }}</div>
+                        <div class="personal-snapshot-value" id="upcomingBills" data-amount="0">
+                            <span class="personal-currency-symbol">₦</span><span class="personal-amount-value">0.00</span>
+                        </div>
+                        <div class="personal-status-indicator" id="billsStatusLabel"></div>
+                    </div>
+                </div>
+                <div class="personal-snapshot-item">
+                    <i class="bi bi-cart text-info"></i>
+                    <div class="personal-snapshot-content">
+                        <div class="personal-snapshot-label">{{ t('shopping_spending', default='KasheKashen Siyayya') }}</div>
+                        <div class="personal-snapshot-value" id="shoppingSpending" data-amount="0">
+                            <span class="personal-currency-symbol">₦</span><span class="personal-amount-value">0.00</span>
+                        </div>
+                        <div class="personal-status-indicator" id="shoppingStatusLabel"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="personal-section-card personal-services-grid-section">
+            <h3 class="personal-section-title">{{ t('explore_features', default='Bincika Abubuwan Haɗin') }}</h3>
+            <div class="personal-services-grid">
+                {% set allowed_features = ['Budget', 'Bills', 'Shopping'] %}
+                {% for feature in explore_features_for_template %}
+                    {% if feature.label in allowed_features %}
+                    <a href="{{ feature.url | e }}" class="personal-service-grid-item text-decoration-none" aria-label="{{ t(feature.label_key, default=feature.label) | e }}">
+                        <div class="personal-service-icon-wrapper">
+                            <i class="bi {{ feature.icon | e }}"></i>
+                        </div>
+                        <div class="personal-service-label">{{ t(feature.label_key, default=feature.label) | e }}</div>
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="personal-section-card personal-promotion-card">
+            <div class="personal-promotion-content">
+                <img src="/static/img/promotion_banner.png" alt="Special Offer" class="personal-promotion-image"> 
+                <div class="personal-promotion-text">
+                    <h4>{{ t('special_announcement_title', default='Sanarwa na Musamman!') }}</h4>
+                    <p>{{ t('special_announcement_description', default='Ku sami damar samun karin haske na musamman akan muamalarku na kudi yau da kullum!') }}</p>
+                    <a href="/general/personal-finance-tips" class="btn btn-sm btn-outline-light">{{ t('learn_more', default='Ƙara Koyo') }}</a>
+                </div>
+            </div>
+        </section>
+
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+.text-budget { color: #007bff; }
+.text-bill { color: #ffc107; }
+.text-shopping { color: #17a2b8; }
+.text-credits { color: #28a745; }
+</style>
+<script>
+window.apiUrls = {
+    budgetSummary: "/summaries/budget/summary",
+    billSummary: "/summaries/bill/summary",
+    shoppingSummary: "/summaries/shopping/summary",
+    ficoreBalance: "/summaries/ficore_balance",
+    recentActivity: "/summaries/recent_activity",
+    notifications: "/summaries/notifications",
+    manageShoppingLists: "/shopping/main",
+    manageShoppingItems: "/shopping/lists/{list_id}/items",
+    shareShoppingList: "/shopping/lists/{list_id}/share",
+    shoppingPriceHistory: "/shopping/price_history/{item_name}",
+    predictiveSuggestions: "/shopping/suggestions",
+    requestFicoreCredits: "{{ url_for('credits.request_credits', _external=True) | e }}"
+};
+
+let amountsVisible = true;
+let isActivityExpanded = false;
+
+function formatCurrency(value) {
+    if (value === null || value === undefined) return '0.00';
+    value = parseFloat(value);
+    if (isNaN(value)) return '0.00';
+    return value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = now - time;
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return window.t('just_now', { default: 'Yanzu' });
+    if (minutes < 60) return minutes + " " + window.t('minutes_ago', { default: 'mintuna da suka wuce' });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return hours + " " + window.t('hours_ago', { default: 'awanni da suka wuce' });
+    const days = Math.floor(hours / 24);
+    return days + " " + window.t('days_ago', { default: 'kwanaki da suka wuce' });
+}
+
+function toggleAmountVisibility() {
+    amountsVisible = !amountsVisible;
+    const visibilityIcon = document.getElementById('visibilityIcon');
+    visibilityIcon.classList.toggle('bi-eye', amountsVisible);
+    visibilityIcon.classList.toggle('bi-eye-slash', !amountsVisible);
+    
+    if (amountsVisible) {
+        visibilityIcon.style.color = '#28a745';
+        visibilityIcon.style.transform = 'scale(1.1)';
+    } else {
+        visibilityIcon.style.color = '#dc3545';
+        visibilityIcon.style.transform = 'scale(1)';
+    }
+    
+    document.querySelectorAll('.personal-amount-value').forEach(el => {
+        el.textContent = amountsVisible ? formatCurrency(el.dataset.amount) : '****';
+    });
+}
+
+function toggleRecentActivities() {
+    const limitedList = document.getElementById('recentActivityListLimited');
+    const fullList = document.getElementById('recentActivityListFull');
+    const viewAllButton = document.getElementById('viewAllActivities');
+    
+    isActivityExpanded = !isActivityExpanded;
+    limitedList.classList.toggle('d-none', isActivityExpanded);
+    fullList.classList.toggle('d-none', !isActivityExpanded);
+    viewAllButton.textContent = isActivityExpanded ? window.t('view_less', { default: 'Duba Ƙasa' }) : window.t('view_all', { default: 'Duba Duk' });
+}
+
+function loadFinancialSummary() {
+    fetch(window.apiUrls.budgetSummary)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Budget summary error:', data.error);
+                return;
+            }
+            const budgetStatus = document.getElementById('budgetStatus');
+            if (budgetStatus) {
+                budgetStatus.querySelector('.personal-amount-value').dataset.amount = data.totalBudget;
+                budgetStatus.querySelector('.personal-amount-value').textContent = amountsVisible ? formatCurrency(data.totalBudget) : '****';
+                budgetStatus.querySelector('.personal-status-indicator').textContent = data.totalBudget >= 0 ? window.t('on_track', { default: 'A Kan Hanya' }) : window.t('over_budget', { default: 'Fiye da Kasafin Kuɗi' });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading budget summary:', error);
+        });
+
+    fetch(window.apiUrls.billSummary)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Bill summary error:', data.error);
+                return;
+            }
+            const upcomingBills = document.getElementById('upcomingBills');
+            if (upcomingBills) {
+                upcomingBills.querySelector('.personal-amount-value').dataset.amount = data.pending_amount;
+                upcomingBills.querySelector('.personal-amount-value').textContent = amountsVisible ? formatCurrency(data.pending_amount) : '****';
+                upcomingBills.querySelector('.personal-status-indicator').textContent = data.overdue_amount > 0 ? window.t('overdue', { default: 'Ya Wuce Lokaci' }) : window.t('on_time', { default: 'A Kan Lokaci' });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading bill summary:', error);
+        });
+
+    fetch(window.apiUrls.shoppingSummary)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Shopping summary error:', data.error);
+                return;
+            }
+            const shoppingSpending = document.getElementById('shoppingSpending');
+            if (shoppingSpending) {
+                shoppingSpending.querySelector('.personal-amount-value').dataset.amount = data.total_shopping_spent;
+                shoppingSpending.querySelector('.personal-amount-value').textContent = amountsVisible ? formatCurrency(data.total_shopping_spent) : '****';
+                shoppingSpending.querySelector('.personal-status-indicator').textContent = data.total_shopping_spent <= data.total_shopping_budget ? window.t('within_budget', { default: 'Cikin Kasafin Kuɗi' }) : window.t('over_budget', { default: 'Fiye da Kasafin Kuɗi' });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading shopping summary:', error);
+        });
+
+    fetch(window.apiUrls.ficoreBalance)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Ficore balance error:', data.error);
+                return;
+            }
+            const walletBalanceElement = document.getElementById('walletBalance');
+            if (walletBalanceElement) {
+                walletBalanceElement.dataset.amount = data.balance;
+                walletBalanceElement.textContent = amountsVisible ? formatCurrency(data.balance) : '****';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading ficore balance:', error);
+        });
+}
+
+function loadRecentActivity() {
+    const limitedList = document.getElementById('recentActivityListLimited');
+    const fullList = document.getElementById('recentActivityListFull');
+    
+    limitedList.innerHTML = `
+        <div class="personal-recent-activity-item">
+            <div class="personal-activity-content-placeholder">
+                <div class="personal-activity-description fw-semibold">${window.t('loading', { default: 'Ana loda...' })}</div>
+            </div>
+        </div>
+    `;
+    fullList.innerHTML = limitedList.innerHTML;
+
+    fetch(window.apiUrls.recentActivity)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(activities => {
+            if (!Array.isArray(activities)) {
+                console.error('Recent activities is not an array:', activities);
+                throw new Error('Invalid activities data');
+            }
+
+            const validActivities = activities.filter(activity => 
+                activity && 
+                typeof activity === 'object' &&
+                (activity.description || activity.description_key) &&
+                activity.icon &&
+                activity.type &&
+                activity.timestamp &&
+                ['budget', 'bill', 'shopping', 'credits'].includes(activity.type.toLowerCase())
+            );
+
+            if (validActivities.length < activities.length) {
+                console.warn(`Filtered out ${activities.length - validActivities.length} invalid or non-personal finance activities`, {
+                    invalid: activities.filter(a => !(
+                        a && 
+                        typeof a === 'object' &&
+                        (a.description || a.description_key) &&
+                        a.icon &&
+                        a.type &&
+                        a.timestamp &&
+                        ['budget', 'bill', 'shopping', 'credits'].includes(a.type.toLowerCase())
+                    ))
+                });
+            }
+
+            const renderActivity = (activity) => `
+                <div class="personal-recent-activity-item">
+                    <div class="personal-activity-icon-wrapper">
+                        <i class="${activity.icon || 'bi bi-info-circle'} text-${activity.type || 'muted'}"></i>
+                    </div>
+                    <div class="personal-activity-content">
+                        <div class="personal-activity-description fw-semibold">${window.t(activity.description_key || 'unknown_activity', { default: activity.description || 'Unknown activity' })}</div>
+                        <div class="personal-activity-time text-muted">${formatTimeAgo(activity.timestamp)}</div>
+                    </div>
+                </div>
+            `;
+
+            limitedList.innerHTML = validActivities.length > 0 ? validActivities.slice(0, 2).map(renderActivity).join('') : `
+                <div class="personal-recent-activity-item personal-no-activity">
+                    <div class="personal-activity-icon-wrapper">
+                        <i class="bi bi-info-circle text-muted"></i>
+                    </div>
+                    <div class="personal-activity-content-placeholder">
+                        <div class="personal-activity-description fw-semibold">${window.t('no_recent_activity', { default: 'Babu ayyukan kwanan nan' })}</div>
+                        <div class="personal-activity-time text-muted">${window.t('start_activity', { default: 'Fara da ƙara kasafin kuɗi ko kuɗi' })}</div>
+                    </div>
+                </div>
+            `;
+
+            fullList.innerHTML = validActivities.length > 0 ? validActivities.map(renderActivity).join('') : `
+                <div class="personal-recent-activity-item personal-no-activity">
+                    <div class="personal-activity-icon-wrapper">
+                        <i class="bi bi-info-circle text-muted"></i>
+                    </div>
+                    <div class="personal-activity-content-placeholder">
+                        <div class="personal-activity-description fw-semibold">${window.t('no_recent_activity', { default: 'Babu ayyukan kwanan nan' })}</div>
+                        <div class="personal-activity-time text-muted">${window.t('start_activity', { default: 'Fara da ƙara kasafin kuɗi ko kuɗi' })}</div>
+                    </div>
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error loading recent activity:', error);
+            const errorMessage = error.message.includes('NetworkError') || error.message.includes('Failed to fetch')
+                ? window.t('network_error', { default: 'Kuskuren sadarwa' })
+                : window.t('error_loading_activities', { default: 'Kuskure wajen loda ayyukan' });
+            const errorHtml = `
+                <div class="personal-recent-activity-item personal-no-activity">
+                    <div class="personal-activity-icon-wrapper">
+                        <i class="bi bi-info-circle text-muted"></i>
+                    </div>
+                    <div class="personal-activity-content-placeholder">
+                        <div class="personal-activity-description fw-semibold">${errorMessage}</div>
+                        <div class="personal-activity-time text-muted">${window.t('try_again_later', { default: 'Sake gwadawa daga baya' })}</div>
+                    </div>
+                </div>
+            `;
+            limitedList.innerHTML = errorHtml;
+            fullList.innerHTML = errorHtml;
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap JavaScript is not loaded');
+    } else {
+        console.log('Bootstrap JavaScript loaded successfully');
+    }
+
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(tooltipTriggerEl => {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    document.querySelectorAll('.bi').forEach(icon => {
+        if (!icon.className.includes('bi-')) {
+            console.warn('Invalid or missing Bootstrap Icon class:', icon.className);
+        }
+    });
+
+    loadFinancialSummary();
+    loadRecentActivity();
+
+    document.querySelectorAll('.personal-quick-action-item, .personal-service-grid-item').forEach(card => {
+        card.addEventListener('click', () => {
+            card.classList.add('animate-click');
+            setTimeout(() => {
+                card.classList.remove('animate-click');
+            }, 200);
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

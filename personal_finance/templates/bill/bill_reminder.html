@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="{{ lang | default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('bill_bill_payment_reminder', default='Bill Payment Reminder') }}</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .header {
+            background: linear-gradient(135deg, #2E7D32, #0288D1);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            padding: 20px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+        a {
+            color: #0288D1;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #2E7D32, #0288D1);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, #1B5E20, #01579B);
+        }
+        .bill-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .bill-table th, .bill-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        .bill-table th {
+            background-color: #f1f1f1;
+            font-weight: bold;
+        }
+        .status-overdue {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .status-pending {
+            color: #FBC02D;
+        }
+        h2 {
+            color: #2E7D32;
+            font-size: 20px;
+            margin-top: 20px;
+        }
+        .unsubscribe {
+            font-size: 12px;
+            color: #777;
+            margin-top: 20px;
+        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin: 10px;
+                padding: 10px;
+            }
+            .btn {
+                display: block;
+                text-align: center;
+            }
+            .bill-table th, .bill-table td {
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ t('bill_bill_payment_reminder', default='Bill Payment Reminder') }}</h1>
+        </div>
+        <div class="content">
+            <p>{{ t('general_dear', default='Dear') }} {{ data.first_name | default(t('general_user', default='User')) }},</p>
+            <p>{{ t('bill_bill_reminder_intro', default='This is a reminder about your upcoming or overdue bills in your FiCore Africa Bill Planner.') }}</p>
+            
+            <h2>{{ t('bill_bill_details', default='Bill Details') }}</h2>
+            {% if data.bills %}
+                <table class="bill-table">
+                    <tr>
+                        <th>{{ t('bill_bill_name', default='Bill Name') }}</th>
+                        <th>{{ t('bill_amount', default='Amount') }}</th>
+                        <th>{{ t('bill_due_date', default='Due Date') }}</th>
+                        <th>{{ t('bill_status', default='Status') }}</th>
+                    </tr>
+                    {% for bill in data.bills %}
+                        <tr>
+                            <td>{{ bill.bill_name }}</td>
+                            <td>₦{{ bill.amount | format_number }}</td>
+                            <td>{{ bill.due_date }}</td>
+                            <td class="status-{{ bill.status.lower() }}">{{ bill.status }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            {% else %}
+                <p>{{ t('bill_no_bills_due', default='No bills are currently due or overdue.') }}</p>
+            {% endif %}
+
+            <p>{{ t('bill_pay_on_time', default='Pay on time to avoid late fees and stay on top of your finances.') }}</p>
+
+            <p style="text-align: center;">
+                <a href="{{ data.cta_url }}" class="btn">{{ t('bill_go_to_bill_planner', default='Go to Bill Planner') }}</a>
+            </p>
+
+            <p>{{ t('general_thank_you', default='Thank you for using FiCore Africa!') }}</p>
+
+            <p class="unsubscribe">
+                {{ t('bill_unsubscribe_prompt', default='To stop receiving these emails, ') }}
+                <a href="{{ data.unsubscribe_url }}">{{ t('bill_unsubscribe', default='unsubscribe here') }}</a>.
+            </p>
+        </div>
+        <div class="footer">
+            <p>{{ t('general_powered_by', default='Powered by FiCore Africa') }}</p>
+        </div>
+    </div>
+</body>
+</html>

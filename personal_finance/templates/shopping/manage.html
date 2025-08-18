@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}
+{{ t('shopping_manage_lists', default='Manage Shopping Lists') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% set tool_name = 'shopping_manage_lists' %}
+    {% set tool_icon = 'fa-list' %}
+    {% set subtitle = t('shopping_manage_description', default='Edit, organize, and track your existing shopping lists') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('shopping.index') }}">{{ t('shopping_title', default='Shopping List Manager') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('shopping_manage_lists', default='Manage Lists') }}</li>
+        </ol>
+    </nav>
+
+    {% if lists_data %}
+        <!-- Filter and Search -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="searchLists" placeholder="{{ t('shopping_search_lists', default='Search lists...') }}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                    <option value="">{{ t('shopping_all_statuses', default='All Statuses') }}</option>
+                    <option value="active">{{ t('shopping_status_active', default='Active') }}</option>
+                    <option value="completed">{{ t('shopping_status_completed', default='Completed') }}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ url_for('shopping.new') }}" class="btn btn-primary w-100">
+                    <i class="fas fa-plus me-2"></i>{{ t('shopping_create_new_list', default='Create New List') }}
+                </a>
+            </div>
+        </div>
+
+        <!-- Shopping Lists Grid -->
+        <div class="row" id="listsContainer">
+            {% for list_data in lists_data %}
+                <div class="col-lg-4 col-md-6 mb-4 list-card" data-status="{{ list_data.status }}" data-name="{{ list_data.name.lower() }}">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 text-truncate" title="{{ list_data.name }}">{{ list_data.name }}</h6>
+                            <span class="badge bg-{{ 'success' if list_data.status == 'completed' else 'primary' }}">
+                                {{ t('shopping_status_' + list_data.status, default=list_data.status.title()) }}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center mb-3">
+                                <div class="col-4">
+                                    <small class="text-muted d-block">{{ t('shopping_budget', default='Budget') }}</small>
+                                    <strong>{{ "%.2f"|format(list_data.budget) }}</strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">{{ t('shopping_spent', default='Spent') }}</small>
+                                    <strong class="{{ 'text-danger' if list_data.total_spent > list_data.budget else 'text-success' }}">
+                                        {{ "%.2f"|format(list_data.total_spent) }}
+                                    </strong>
+                                </div>
+                                <div class="col-4">
+                                    <small class="text-muted d-block">{{ t('shopping_items', default='Items') }}</small>
+                                    <strong>{{ list_data.bought_items }}/{{ list_data.items_count }}</strong>
+                                </div>
+                            </div>
+                            
+                            <div class="progress mb-3" style="height: 8px;">
+                                <div class="progress-bar" role="progressbar" style="width: {{ list_data.progress }}%" 
+                                     aria-valuenow="{{ list_data.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            
+                            <small class="text-muted d-block mb-3">
+                                {{ "%.1f"|format(list_data.progress) }}% {{ t('shopping_complete', default='complete') }}
+                            </small>
+                            
+                            {% if list_data.collaborators %}
+                                <div class="mb-3">
+                                    <small class="text-muted">{{ t('shopping_collaborators', default='Collaborators') }}:</small>
+                                    <div class="mt-1">
+                                        {% for collaborator in list_data.collaborators[:3] %}
+                                            <span class="badge bg-light text-dark me-1">{{ collaborator }}</span>
+                                        {% endfor %}
+                                        {% if list_data.collaborators|length > 3 %}
+                                            <span class="badge bg-light text-dark">+{{ list_data.collaborators|length - 3 }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-light">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{{ url_for('shopping.edit_list', list_id=list_data.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>{{ t('shopping_edit', default='Edit') }}
+                                </a>
+                                <button type="button" class="btn btn-outline-info btn-sm" onclick="viewListDetails('{{ list_data.id }}')">
+                                    <i class="fas fa-eye me-1"></i>{{ t('shopping_view', default='View') }}
+                                </button>
+                                <a href="{{ url_for('shopping.export_pdf', list_id=list_data.id) }}" class="btn btn-outline-success btn-sm" title="{{ t('shopping_export_pdf_cost', default='Export PDF (2 FC)') }}">
+                                    <i class="fas fa-file-pdf me-1"></i>{{ t('shopping_pdf', default='PDF') }}
+                                </a>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteList('{{ list_data.id }}', '{{ list_data.name }}')">
+                                    <i class="fas fa-trash me-1"></i>{{ t('shopping_delete', default='Delete') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination (if needed) -->
+        {% if lists_data|length >= 12 %}
+            <nav aria-label="Shopping lists pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <span class="page-link">{{ t('general_previous', default='Previous') }}</span>
+                    </li>
+                    <li class="page-item active">
+                        <span class="page-link">1</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">{{ t('general_next', default='Next') }}</span>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="fas fa-cart-shopping fa-4x mb-3 text-muted"></i>
+            <h4 class="text-muted">{{ t('shopping_no_lists_empty_state', default='No shopping lists created yet') }}</h4>
+            <p class="text-muted">{{ t('shopping_get_started_description', default='Create your first shopping list to start organizing your purchases') }}</p>
+            <a href="{{ url_for('shopping.new') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>{{ t('shopping_create_first_list', default='Create Your First List') }}
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- List Details Modal -->
+<div class="modal fade" id="listDetailsModal" tabindex="-1" aria-labelledby="listDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="listDetailsModalLabel">{{ t('shopping_list_details', default='List Details') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="listDetailsContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">{{ t('general_loading', default='Loading...') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteListModal" tabindex="-1" aria-labelledby="deleteListModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteListModalLabel">{{ t('shopping_confirm_delete', default='Confirm Delete') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ t('shopping_delete_confirmation', default='Are you sure you want to delete the list') }} "<span id="deleteListName"></span>"?</p>
+                <p class="text-danger small">{{ t('shopping_delete_warning', default='This action cannot be undone.') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('general_cancel', default='Cancel') }}</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">{{ t('shopping_delete', default='Delete') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const searchInput = document.getElementById('searchLists');
+    const statusFilter = document.getElementById('statusFilter');
+    const listCards = document.querySelectorAll('.list-card');
+
+    function filterLists() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+
+        listCards.forEach(card => {
+            const name = card.dataset.name;
+            const status = card.dataset.status;
+            
+            const matchesSearch = name.includes(searchTerm);
+            const matchesStatus = !statusFilter || status === statusFilter;
+            
+            if (matchesSearch && matchesStatus) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    searchInput.addEventListener('input', filterLists);
+    statusFilter.addEventListener('change', filterLists);
+});
+
+function viewListDetails(listId) {
+    const modal = new bootstrap.Modal(document.getElementById('listDetailsModal'));
+    const content = document.getElementById('listDetailsContent');
+    
+    // Show loading spinner
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch list details
+    fetch(`/shopping/get_list_details?list_id=${listId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                content.innerHTML = data.html;
+            } else {
+                content.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            content.innerHTML = `<div class="alert alert-danger">Error loading list details</div>`;
+        });
+}
+
+function deleteList(listId, listName) {
+    document.getElementById('deleteListName').textContent = listName;
+    const modal = new bootstrap.Modal(document.getElementById('deleteListModal'));
+    modal.show();
+    
+    document.getElementById('confirmDeleteBtn').onclick = function() {
+        // Send delete request
+        fetch(`/shopping/delete_list`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            },
+            body: JSON.stringify({ list_id: listId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.error || 'Error deleting list');
+            }
+        })
+        .catch(error => {
+            alert('Error deleting list');
+        });
+        
+        modal.hide();
+    };
+}
+</script>
+{% endblock %}

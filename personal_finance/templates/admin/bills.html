@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin_dashboard', default='Admin Dashboard') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin_bills_title', default='Manage Bills') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('admin_bills_title', default='Manage Bills') }}</h2>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if bills %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin_user_id', default='User ID') }}</th>
+                        <th>{{ t('bill_title', default='Bill') }}</th>
+                        <th>{{ t('bill_amount', default='Amount') }}</th>
+                        <th>{{ t('bill_status', default='Status') }}</th>
+                        <th>{{ t('admin_created_at', default='Created At') }}</th>
+                        <th>{{ t('general_actions', default='Actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in bills %}
+                    <tr>
+                        <td>{{ bill.user_id }}</td>
+                        <td>{{ bill.name }}</td>
+                        <td>{{ bill.amount | format_currency }}</td>
+                        <td>{{ bill.status }}</td>
+                        <td>{{ bill.created_at | format_date }}</td>
+                        <td>
+                            <form action="{{ url_for('admin.admin_mark_bill_paid', bill_id=bill._id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('{{ t('admin_confirm_mark_paid', default='Mark this bill as paid?') }}')">
+                                    {{ t('admin_mark_paid', default='Mark Paid') }}
+                                </button>
+                            </form>
+                            <form action="{{ url_for('admin.delete_item', collection='bills', item_id=bill._id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('general_confirm_delete', default='Are you sure?') }}')">
+                                    {{ t('general_delete', default='Delete') }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{{ t('admin_no_bills', default='No bills found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

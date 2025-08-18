@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin_dashboard', default='Admin Dashboard') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin_audit_title', default='Audit Logs') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('admin_audit_title', default='Audit Logs') }}</h2>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if logs %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin_admin_id', default='Admin ID') }}</th>
+                        <th>{{ t('admin_action', default='Action') }}</th>
+                        <th>{{ t('admin_details', default='Details') }}</th>
+                        <th>{{ t('admin_timestamp', default='Timestamp') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.admin_id }}</td>
+                        <td>{{ log.action }}</td>
+                        <td>{{ log.details | tojson }}</td>
+                        <td>{{ log.timestamp | format_date }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{{ t('admin_no_audit_logs', default='No audit logs found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

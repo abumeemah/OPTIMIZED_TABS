@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ t('reports_shopping', default='Shopping Report') }} - FiCore{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="page-title mb-4">
+        <h1>{{ t('reports_shopping', default='Shopping Report') }}</h1>
+        <small class="subtext">{{ t('shopping_report_description', default='Review your shopping lists, items, and suggestions for budgeting.') }}</small>
+    </div>
+
+    <!-- Report Filter Form -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="{{ form.start_date.id }}" class="form-label">{{ t('reports_start_date', default='Start Date') }}</label>
+                        {{ form.start_date(class="form-control") }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.end_date.id }}" class="form-label">{{ t('reports_end_date', default='End Date') }}</label>
+                        {{ form.end_date(class="form-control") }}
+                    </div>
+                    <div class="col-md-4">
+                        <label for="{{ form.format.id }}" class="form-label">{{ t('reports_format', default='Format') }}</label>
+                        {{ form.format(class="form-select") }}
+                    </div>
+                    <div class="col-12 mt-3">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Shopping Lists Table -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>{{ t('shopping_lists', default='Shopping Lists') }}</h5>
+        </div>
+        <div class="card-body">
+            {% if shopping_data.lists|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{{ t('general_date', default='Date') }}</th>
+                            <th>{{ t('shopping_list_name', default='List Name') }}</th>
+                            <th>{{ t('shopping_budget', default='Budget') }}</th>
+                            <th>{{ t('shopping_total_spent', default='Total Spent') }}</th>
+                            <th>{{ t('shopping_collaborators', default='Collaborators') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lst in shopping_data.lists %}
+                        <tr>
+                            <td>{{ lst.created_at }}</td>
+                            <td>{{ lst.name }}</td>
+                            <td>{{ lst.budget | format_currency }}</td>
+                            <td>{{ lst.total_spent | format_currency }}</td>
+                            <td>{{ lst.collaborators | join(', ') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2"><strong>{{ t('shopping_total', default='Total') }}</strong></td>
+                            <td><strong>{{ shopping_data.lists | sum(attribute='budget') | format_currency }}</strong></td>
+                            <td><strong>{{ shopping_data.lists | sum(attribute='total_spent') | format_currency }}</strong></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">{{ t('no_shopping_lists', default='No shopping lists found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Shopping Items Table -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>{{ t('shopping_items', default='Shopping Items') }}</h5>
+        </div>
+        <div class="card-body">
+            {% if shopping_data.items|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{{ t('general_date', default='Date') }}</th>
+                            <th>{{ t('shopping_item_name', default='Item Name') }}</th>
+                            <th>{{ t('shopping_quantity', default='Quantity') }}</th>
+                            <th>{{ t('shopping_price', default='Price') }}</th>
+                            <th>{{ t('shopping_status', default='Status') }}</th>
+                            <th>{{ t('shopping_category', default='Category') }}</th>
+                            <th>{{ t('shopping_store', default='Store') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in shopping_data.items %}
+                        <tr>
+                            <td>{{ item.created_at }}</td>
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.price | format_currency }}</td>
+                            <td>{{ t(item.status, default=item.status) }}</td>
+                            <td>{{ item.category }}</td>
+                            <td>{{ item.store }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3"><strong>{{ t('shopping_total_price', default='Total Price') }}</strong></td>
+                            <td><strong>{{ shopping_data.items | sum(attribute='price', multiplier='quantity') | format_currency }}</strong></td>
+                            <td colspan="3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">{{ t('no_shopping_items', default='No shopping items found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Shopping Suggestions Table -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>{{ t('shopping_suggestions', default='Suggestions') }}</h5>
+        </div>
+        <div class="card-body">
+            {% if shopping_data.suggestions|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>{{ t('general_date', default='Date') }}</th>
+                            <th>{{ t('shopping_item_name', default='Item Name') }}</th>
+                            <th>{{ t('shopping_quantity', default='Quantity') }}</th>
+                            <th>{{ t('shopping_price', default='Price') }}</th>
+                            <th>{{ t('shopping_status', default='Status') }}</th>
+                            <th>{{ t('shopping_category', default='Category') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sug in shopping_data.suggestions %}
+                        <tr>
+                            <td>{{ sug.created_at }}</td>
+                            <td>{{ sug.name }}</td>
+                            <td>{{ sug.quantity }}</td>
+                            <td>{{ sug.price | format_currency }}</td>
+                            <td>{{ t(sug.status, default=sug.status) }}</td>
+                            <td>{{ sug.category }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3"><strong>{{ t('shopping_total_suggestion_price', default='Total Suggestion Price') }}</strong></td>
+                            <td><strong>{{ shopping_data.suggestions | sum(attribute='price', multiplier='quantity') | format_currency }}</strong></td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted">{{ t('no_shopping_suggestions', default='No shopping suggestions found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

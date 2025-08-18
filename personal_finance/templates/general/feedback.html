@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('general_provide_feedback', default='Provide Feedback') }}{% endblock %}
+{% block content %}
+<div class="container my-5">
+    <h1 class="text-center mb-4">{{ t('general_provide_feedback', default='Provide Feedback') }}</h1>
+    <div class="card">
+        <div class="card-body">
+            <form class="validate-form" method="POST" action="{{ url_for('general_bp.feedback') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group mb-3">
+                    <label for="tool_name" class="form-label">{{ t('general_select_tool', default='Select Tool') }} <span class="text-danger">*</span></label>
+                    <select name="tool_name" id="tool_name" class="form-select" required>
+                        <option value="" disabled selected>{{ t('general_choose_option', default='Choose...') }}</option>
+                        <option value="budget">{{ t('budget_budget_planner', default='Budget') }}</option>
+                        <option value="bill">{{ t('bill_bill_planner', default='Bills') }}</option>
+                        <option value="shopping">{{ t('shopping_list', default='Shopping') }}</option>
+                    </select>
+                    <div class="invalid-feedback">{{ t('general_invalid_tool', default='Please select a valid tool') }}</div>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="rating" class="form-label">{{ t('general_rating', default='Rating (1-5)') }} <span class="text-danger">*</span></label>
+                    <select name="rating" id="rating" class="form-select" required>
+                        <option value="" disabled selected>{{ t('general_select_rating', default='Select a rating (1-5)') }}</option>
+                        <option value="1">1 - {{ t('general_feedback_poor', default='Poor') }}</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5 - {{ t('general_feedback_excellent', default='Excellent') }}</option>
+                    </select>
+                    <div class="invalid-feedback">{{ t('general_invalid_rating', default='Please provide a rating between 1 and 5') }}</div>
+                </div>
+                <div class="form-group mb-3">
+                    <label for="comment" class="form-label">{{ t('general_comment', default='Comment') }}</label>
+                    <textarea name="comment" id="comment" class="form-control" rows="4" placeholder="{{ t('general_feedback_comment_placeholder', default='Your feedback (optional)') }}"></textarea>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary">{{ t('general_submit', default='Submit') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

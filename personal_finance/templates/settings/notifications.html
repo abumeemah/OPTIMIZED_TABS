@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ t('settings_notifications', default='Notifications') }} - FiCore{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">{{ t('settings_notifications', default='Notifications') }}</h1>
+    <form action="{{ url_for('settings.notifications') }}" method="POST" class="row g-3">
+        {{ form.hidden_tag() }}
+        <div class="col-12 form-check">
+            <label for="email_notifications" class="form-check-label">
+                {{ form.email_notifications(class="form-check-input me-2", type="checkbox") }}
+                {{ t('settings_email_notifications', default='Receive email notifications') }}
+            </label>
+            {% if form.email_notifications.errors %}
+                <p class="text-danger mt-1">{{ form.email_notifications.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="col-12 form-check">
+            <label for="sms_notifications" class="form-check-label">
+                {{ form.sms_notifications(class="form-check-input me-2", type="checkbox") }}
+                {{ t('settings_sms_notifications', default='Receive SMS notifications') }}
+            </label>
+            {% if form.sms_notifications.errors %}
+                <p class="text-danger mt-1">{{ form.sms_notifications.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100">{{ t('general_save', default='Save') }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

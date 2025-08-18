@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}
+{{ trans('bill_manage_bills', default='Manage Bills') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Tool Header -->
+    {% set tool_name = 'bill_manage_bills' %}
+    {% set tool_icon = 'fa-edit' %}
+    {% set subtitle = trans('bill_manage_description', default='Edit, update, and organize your existing bills') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('bill.index') }}">{{ trans('bill_bill_planner', default='Bill Planner') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ trans('bill_manage_bills', default='Manage Bills') }}</li>
+        </ol>
+    </nav>
+
+    {% if bills_data %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="mb-0">{{ trans('bill_your_bills', default='Your Bills') }} ({{ bills_data|length }})</h5>
+            <a href="{{ url_for('bill.new') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>{{ trans('bill_add_bill', default='Add Bill') }}
+            </a>
+        </div>
+
+        {% for bill_id, bill, edit_form in bills_data %}
+            <div class="card mb-3 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">{{ bill.bill_name }}</h6>
+                        <small class="text-muted">{{ trans('bill_due_date', default='Due Date') }}: {{ bill.due_date_formatted }}</small>
+                    </div>
+                    <div>
+                        <span class="badge bg-{{ 'success' if bill.status == 'paid' else 'warning' if bill.status == 'pending' else 'danger' if bill.status == 'overdue' else 'info' }} me-2">
+                            {{ trans('bill_status_' + bill.status, default=bill.status.title()) }}
+                        </span>
+                        <span class="h5 mb-0">{{ bill.amount }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('bill.manage') }}" class="bill-edit-form validate-form needs-validation" novalidate>
+                        {{ edit_form.csrf_token }}
+                        <input type="hidden" name="bill_id" value="{{ bill_id }}">
+                        <input type="hidden" name="action" value="update_bill">
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ trans('bill_amount', default='Amount') }}</label>
+                                    {{ edit_form.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", required=True, value=edit_form.amount.data or '') }}
+                                    <div class="invalid-feedback">{{ trans('bill_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                    <small class="form-text text-muted">{{ trans('bill_amount_help', default='Enter amount (e.g., 5000.00)') }}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ trans('bill_frequency', default='Frequency') }}</label>
+                                    {{ edit_form.frequency(class="form-select", required=True) }}
+                                    <div class="invalid-feedback">{{ trans('bill_frequency_required', default='Frequency is required') }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ trans('general_category', default='Category') }}</label>
+                                    {{ edit_form.category(class="form-select", required=True) }}
+                                    <div class="invalid-feedback">{{ trans('bill_category_required', default='Category is required') }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">{{ trans('bill_status', default='Status') }}</label>
+                                    {{ edit_form.status(class="form-select", required=True) }}
+                                    <div class="invalid-feedback">{{ trans('bill_status_required', default='Status is required') }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check mt-4">
+                                    {{ edit_form.send_email(class="form-check-input", id="send_email_" + bill_id, disabled=not current_user.is_authenticated) }}
+                                    <label class="form-check-label" for="send_email_{{ bill_id }}">{{ trans('general_send_email', default='Send Email Reminders') }}</label>
+                                    {% if not current_user.is_authenticated %}
+                                        <small class="form-text text-muted">{{ trans('bill_email_required', default='Email notifications require an authenticated user') }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="reminder-days-container" style="display: {{ 'block' if edit_form.send_email.data else 'none' }};">
+                                    <label class="form-label">{{ trans('bill_reminder_days', default='Reminder Days') }}</label>
+                                    {{ edit_form.reminder_days(class="form-control", type="number", min="1", max="365", step="1", value=edit_form.reminder_days.data or '') }}
+                                    <div class="invalid-feedback">{{ trans('bill_reminder_days_invalid', default='Please enter a valid integer between 1 and 365') }}</div>
+                                    <small class="form-text text-muted">{{ trans('bill_reminder_days_example', default='Example: 7 for a reminder 7 days before due date') }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                            <div>
+                                <small class="text-muted">
+                                    {{ trans('general_category', default='Category') }}: {{ trans('bill_category_' + bill.category, default=bill.category.replace('_', ' ').title()) }} | 
+                                    {{ trans('bill_frequency', default='Frequency') }}: {{ trans('bill_frequency_' + bill.frequency, default=bill.frequency.title()) }}
+                                </small>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success btn-sm me-2">
+                                    <i class="fas fa-save me-1"></i>{{ trans('general_update', default='Update') }}
+                                </button>
+                                <button type="submit" name="action" value="toggle_status" class="btn btn-secondary btn-sm me-2">
+                                    <i class="fas fa-toggle-on me-1"></i>{{ trans('bill_toggle_status', default='Toggle Status') }}
+                                </button>
+                                <button type="submit" name="action" value="delete_bill" class="btn btn-danger btn-sm" onclick="return confirm('{{ trans('bill_confirm_delete', default='Are you sure you want to delete this bill?') }}');">
+                                    <i class="fas fa-trash me-1"></i>{{ trans('general_delete', default='Delete') }}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+
+        <!-- Pagination or Load More (if needed) -->
+        {% if bills_data|length >= 20 %}
+            <div class="text-center mt-4">
+                <p class="text-muted">{{ trans('bill_showing_recent', default='Showing most recent bills') }}</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-file-invoice fa-4x mb-3 text-muted"></i>
+            <h4 class="text-muted">{{ trans('bill_no_bills_empty_state', default='No bills added yet') }}</h4>
+            <p class="text-muted">{{ trans('bill_get_started_description', default='Start by adding your first bill to track and manage your payments') }}</p>
+            <a href="{{ url_for('bill.new') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus me-2"></i>{{ trans('bill_add_first_bill', default='Add Your First Bill') }}
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="mb-3">{{ trans('bill_quick_actions', default='Quick Actions') }}</h6>
+                    <a href="{{ url_for('bill.new') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-plus me-1"></i>{{ trans('bill_add_bill', default='Add Bill') }}
+                    </a>
+                    <a href="{{ url_for('bill.export_pdf') }}" class="btn btn-outline-success me-2" title="{{ trans('bill_export_pdf_cost', default='Export PDF (2 FC)') }}">
+                        <i class="fas fa-file-pdf me-1"></i>{{ trans('bill_export_pdf', default='Export PDF') }}
+                    </a>
+                    <a href="{{ url_for('bill.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-chart-line me-1"></i>{{ trans('bill_view_dashboard', default='View Dashboard') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle reminder days visibility for each form
+    document.querySelectorAll('[id^="send_email_"]').forEach(function(checkbox) {
+        const billId = checkbox.id.replace('send_email_', '');
+        const reminderContainer = checkbox.closest('.card').querySelector('.reminder-days-container');
+        
+        if (reminderContainer) {
+            checkbox.addEventListener('change', function() {
+                reminderContainer.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+    });
+
+    // Form validation for all edit forms
+    document.querySelectorAll('.bill-edit-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Find first invalid field and focus it
+                const firstInvalid = form.querySelector(':invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            form.classList.add('was-validated');
+        });
+    });
+});
+</script>
+{% endblock %}

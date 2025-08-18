@@ -1,0 +1,793 @@
+{% extends 'base.html' %}
+{% block title %}
+{{ trans('bill_bill_planner', default='Bill Planner') }}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Tool Header -->
+    {% set tool_name = 'bill_bill_planner' %}
+    {% set tool_icon = 'fa-file-invoice' %}
+    {% set subtitle = trans('bill_manage_track_bills', default='Manage and track all your bills in one place') %}
+    {% include 'tool_header.html' %}
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-4" id="billTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if active_tab == 'add-bill' else '' }}" id="add-bill-tab" data-bs-toggle="tab" data-bs-target="#add-bill" type="button" role="tab" aria-controls="add-bill" aria-selected="{{ 'true' if active_tab == 'add-bill' else 'false' }}">
+                <i class="fas fa-plus"></i> {{ trans('bill_add_bill', default='Add Bill') }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if active_tab == 'manage-bills' else '' }}" id="manage-bills-tab" data-bs-toggle="tab" data-bs-target="#manage-bills" type="button" role="tab" aria-controls="manage-bills" aria-selected="{{ 'true' if active_tab == 'manage-bills' else 'false' }}">
+                <i class="fas fa-list"></i> {{ trans('bill_manage_bills', default='Manage Bills') }}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if active_tab == 'dashboard' else '' }}" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="{{ 'true' if active_tab == 'dashboard' else 'false' }}">
+                <i class="fas fa-tachometer-alt"></i> {{ trans('bill_dashboard', default='Dashboard') }}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="billTabContent">
+        <!-- Add Bill Tab -->
+        <div class="tab-pane fade {{ 'show active' if active_tab == 'add-bill' else '' }}" id="add-bill" role="tabpanel" aria-labelledby="add-bill-tab">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>{{ trans('bill_add_new_bill', default='Add New Bill') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('bill.main') }}" id="addBillForm" class="validate-form needs-validation" novalidate>
+                        {{ form.csrf_token }}
+                        <input type="hidden" name="action" value="add_bill">
+
+                        <!-- Bill Details Section -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.bill_name.id }}" class="form-label">{{ trans('bill_bill_name', default='Bill Name') }}</label>
+                                    {{ form.bill_name(class="form-control", placeholder=trans('bill_bill_name_placeholder', default='e.g., NEPA, MTN Data, Ajo Contribution'), required=True, value=form.bill_name.data or '') }}
+                                    <div class="invalid-feedback">{{ trans('bill_bill_name_required', default='Bill name is required') }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.amount.id }}" class="form-label">{{ trans('bill_amount', default='Amount') }}</label>
+                                    {{ form.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="5000.00", required=True, value=form.amount.data or '') }}
+                                    <div class="invalid-feedback">{{ trans('bill_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                    <small id="amount_help" class="form-text text-muted">{{ trans('bill_amount_help', default='Enter amount (e.g., 5000.00)') }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.due_date.id }}" class="form-label">{{ trans('bill_due_date', default='Due Date') }}</label>
+                                    {{ form.due_date(class="form-control", type="date", required=True, value='' if form.due_date.data is none else form.due_date.data.strftime('%Y-%m-%d')) }}
+                                    <div class="invalid-feedback">{{ trans('bill_due_date_required', default='Valid due date is required') }}</div>
+                                    <small id="due_date_help" class="form-text text-muted">{{ trans('bill_due_date_future_validation', default='Due date must be today or in the future') }}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.frequency.id }}" class="form-label">{{ trans('bill_frequency', default='Frequency') }}</label>
+                                    {{ form.frequency(class="form-select", required=True) }}
+                                    <div class="invalid-feedback">{{ trans('bill_frequency_required', default='Frequency is required') }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.category.id }}" class="form-label">{{ trans('general_category', default='Category') }}</label>
+                                    {{ form.category(class="form-select", required=True) }}
+                                    <div class="invalid-feedback">{{ trans('bill_category_required', default='Category is required') }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.status.id }}" class="form-label">{{ trans('bill_status', default='Status') }}</label>
+                                    {{ form.status(class="form-select", required=True) }}
+                                    <div class="invalid-feedback">{{ trans('bill_status_required', default='Status is required') }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reminder Settings -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6>{{ trans('bill_reminder_settings', default='Reminder Settings') }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3 form-check">
+                                    {{ form.send_email(class="form-check-input", id="send_email", disabled=not current_user.is_authenticated) }}
+                                    <label class="form-check-label" for="send_email">{{ trans('general_send_email', default='Send Email Reminders') }}</label>
+                                    {% if not current_user.is_authenticated %}
+                                        <small class="form-text text-muted">{{ trans('bill_email_required', default='Email notifications require an authenticated user') }}</small>
+                                    {% endif %}
+                                    <div class="invalid-feedback">{{ trans('bill_email_required', default='Email notifications require an authenticated user') }}</div>
+                                </div>
+                                <div class="mb-3" id="reminder_days_container" style="display: {{ 'block' if form.send_email.data else 'none' }};">
+                                    <label for="{{ form.reminder_days.id }}" class="form-label">{{ trans('bill_reminder_days', default='Reminder Days') }}</label>
+                                    {{ form.reminder_days(class="form-control", type="number", min="1", max="365", step="1", placeholder="7", value=form.reminder_days.data or '') }}
+                                    <div class="invalid-feedback">{{ trans('bill_reminder_days_invalid', default='Please enter a valid integer between 1 and 365') }}</div>
+                                    <small id="reminder_days_help" class="form-text text-muted">{{ trans('bill_reminder_days_example', default='Example: 7 for a reminder 7 days before due date') }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>{{ trans('bill_save_bill', default='Save Bill') }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Bills Tab -->
+        <div class="tab-pane fade {{ 'show active' if active_tab == 'manage-bills' else '' }}" id="manage-bills" role="tabpanel" aria-labelledby="manage-bills-tab">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-edit me-2"></i>{{ trans('bill_manage_bills', default='Manage Bills') }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if bills_data %}
+                        {% for bill_id, bill, edit_form in bills_data %}
+                            <div class="card mb-3 shadow-sm">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ bill.bill_name }} ({{ bill.amount }})</h6>
+                                    <p class="text-muted small">{{ trans('bill_due_date', default='Due Date') }}: {{ bill.due_date_formatted }}</p>
+                                    <form method="POST" action="{{ url_for('bill.main') }}" class="bill-edit-form validate-form needs-validation" novalidate>
+                                        {{ edit_form.csrf_token }}
+                                        <input type="hidden" name="bill_id" value="{{ bill_id }}">
+                                        <input type="hidden" name="action" value="update_bill">
+
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ trans('bill_amount', default='Amount') }}</label>
+                                                    {{ edit_form.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", required=True, value=edit_form.amount.data or '') }}
+                                                    <div class="invalid-feedback">{{ trans('bill_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                                    <small id="amount_help_{{ bill_id }}" class="form-text text-muted">{{ trans('bill_amount_help', default='Enter amount (e.g., 5000.00)') }}</small>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ trans('bill_frequency', default='Frequency') }}</label>
+                                                    {{ edit_form.frequency(class="form-select", required=True) }}
+                                                    <div class="invalid-feedback">{{ trans('bill_frequency_required', default='Frequency is required') }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ trans('general_category', default='Category') }}</label>
+                                                    {{ edit_form.category(class="form-select", required=True) }}
+                                                    <div class="invalid-feedback">{{ trans('bill_category_required', default='Category is required') }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="mb-3">
+                                                    <label class="form-label">{{ trans('bill_status', default='Status') }}</label>
+                                                    {{ edit_form.status(class="form-select", required=True) }}
+                                                    <div class="invalid-feedback">{{ trans('bill_status_required', default='Status is required') }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check mt-4">
+                                                    {{ edit_form.send_email(class="form-check-input", id="send_email_" + bill_id, disabled=not current_user.is_authenticated) }}
+                                                    <label class="form-check-label" for="send_email_{{ bill_id }}">{{ trans('general_send_email', default='Send Email Reminders') }}</label>
+                                                    {% if not current_user.is_authenticated %}
+                                                        <small class="form-text text-muted">{{ trans('bill_email_required', default='Email notifications require an authenticated user') }}</small>
+                                                    {% endif %}
+                                                    <div class="invalid-feedback">{{ trans('bill_email_required', default='Email notifications require an authenticated user') }}</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="reminder-days-container" style="display: {{ 'block' if edit_form.send_email.data else 'none' }};">
+                                                    <label class="form-label">{{ trans('bill_reminder_days', default='Reminder Days') }}</label>
+                                                    {{ edit_form.reminder_days(class="form-control", type="number", min="1", max="365", step="1", value=edit_form.reminder_days.data or '') }}
+                                                    <div class="invalid-feedback">{{ trans('bill_reminder_days_invalid', default='Please enter a valid integer between 1 and 365') }}</div>
+                                                    <small id="reminder_days_help_{{ bill_id }}" class="form-text text-muted">{{ trans('bill_reminder_days_example', default='Example: 7 for a reminder 7 days before due date') }}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-3">
+                                            <button type="submit" class="btn btn-success btn-sm me-2">
+                                                <i class="fas fa-save me-1"></i>{{ trans('general_update', default='Update') }}
+                                            </button>
+                                            <button type="submit" name="action" value="delete_bill" class="btn btn-danger btn-sm me-2" onclick="return confirm('{{ trans('bill_confirm_delete', default='Are you sure you want to delete this bill?') }}');">
+                                                <i class="fas fa-trash me-1"></i>{{ trans('general_delete', default='Delete') }}
+                                            </button>
+                                            <button type="submit" name="action" value="toggle_status" class="btn btn-secondary btn-sm">
+                                                <i class="fas fa-toggle-on me-1"></i>{{ trans('bill_toggle_status', default='Toggle Status') }}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-file-invoice fa-3x mb-3 text-muted"></i>
+                            <p class="text-muted">{{ trans('bill_no_bills_empty_state', default='No bills added yet. Start by adding one!') }}</p>
+                            <a href="{{ url_for('bill.main', tab='add-bill') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>{{ trans('bill_add_bill', default='Add Bill') }}
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-pane fade {{ 'show active' if active_tab == 'dashboard' else '' }}" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>{{ trans('bill_dashboard', default='Bill Dashboard') }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if bills_data %}
+                        <!-- Summary Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-success text-white shadow-sm">
+                                    <div class="card-body">
+                                        <h6>{{ trans('bill_paid_count', default='Paid Bills') }}</h6>
+                                        <h4 class="mb-0">{{ paid_count }}</h4>
+                                        <small>{{ trans('bill_total_paid', default='Total') }}: {{ total_paid }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-warning text-white shadow-sm">
+                                    <div class="card-body">
+                                        <h6>{{ trans('bill_pending_count', default='Pending Bills') }}</h6>
+                                        <h4 class="mb-0">{{ pending_count }}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-danger text-white shadow-sm">
+                                    <div class="card-body">
+                                        <h6>{{ trans('bill_overdue_count', default='Overdue Bills') }}</h6>
+                                        <h4 class="mb-0">{{ overdue_count }}</h4>
+                                        <small>{{ trans('bill_total_overdue', default='Total') }}: {{ total_overdue }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card bg-info text-white shadow-sm">
+                                    <div class="card-body">
+                                        <h6>{{ trans('bill_unpaid_count', default='Unpaid Bills') }}</h6>
+                                        <h4 class="mb-0">{{ unpaid_count }}</h4>
+                                        <small>{{ trans('bill_total_unpaid', default='Total') }}: {{ total_unpaid }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Insights and Tips -->
+                        {% if insights %}
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h6>{{ trans('bill_insights', default='Financial Insights') }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        {% for insight in insights %}
+                                            <li class="list-group-item">{{ trans(insight, default=insight) }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% if tips %}
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h6>{{ trans('bill_tips', default='Financial Tips') }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        {% for tip in tips %}
+                                            <li class="list-group-item">{{ trans(tip, default=tip) }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Upcoming Bills -->
+                        {% if upcoming_bills %}
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h6>{{ trans('bill_upcoming_bills', default='Upcoming Bills') }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        {% for bill_id, bill, edit_form in upcoming_bills %}
+                                            <li class="list-group-item">
+                                                {{ bill.bill_name }} ({{ bill.amount }}) - {{ trans('bill_due_date', default='Due') }}: {{ bill.due_date | format_date }}
+                                                <span class="badge bg-{{ 'success' if bill.status == 'paid' else 'warning' if bill.status == 'pending' else 'danger' if bill.status == 'overdue' else 'info' }} ms-2">
+                                                    {{ trans('bill_status_' + bill.status, default=bill.status) }}
+                                                </span>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Category Breakdown Chart -->
+                        {% if categories and categories|length > 0 %}
+                            <div class="card mb-4">
+                                <div class="card-header bg-light">
+                                    <h6>{{ trans('bill_category_breakdown', default='Category Breakdown') }}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="categoryChart" height="200"></canvas>
+                                    <div id="chartError" class="text-danger mt-2" style="display: none;">
+                                        {{ trans('bill_chart_error', default='Error rendering category chart. Please try again later.') }}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="card mb-4">
+                                <div class="card-body text-center">
+                                    <p class="text-muted">{{ trans('bill_no_categories', default='No bill data available for the chart.') }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Bills Table -->
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6>{{ trans('bill_all_bills', default='All Bills') }}</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>{{ trans('bill_bill_name', default='Bill Name') }}</th>
+                                                <th>{{ trans('bill_amount', default='Amount') }}</th>
+                                                <th>{{ trans('bill_due_date', default='Due Date') }}</th>
+                                                <th>{{ trans('general_category', default='Category') }}</th>
+                                                <th>{{ trans('bill_frequency', default='Frequency') }}</th>
+                                                <th>{{ trans('bill_status', default='Status') }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for bill_id, bill, edit_form in bills_data %}
+                                                <tr>
+                                                    <td>{{ bill.bill_name }}</td>
+                                                    <td>{{ bill.amount }}</td>
+                                                    <td>{{ bill.due_date | format_date }}</td>
+                                                    <td>{{ trans('bill_category_' + bill.category, default=bill.category.replace('_', ' ').title()) }}</td>
+                                                    <td>{{ trans('bill_frequency_' + bill.frequency, default=bill.frequency.title()) }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{{ 'success' if bill.status == 'paid' else 'warning' if bill.status == 'pending' else 'danger' if bill.status == 'overdue' else 'info' }}">
+                                                            {{ trans('bill_status_' + bill.status, default=bill.status.title()) }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-file-invoice fa-3x mb-3 text-muted"></i>
+                            <p class="text-muted">{{ trans('bill_no_bills_empty_state', default='No bills added yet. Start by adding one!') }}</p>
+                            <a href="{{ url_for('bill.main', tab='add-bill') }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>{{ trans('bill_add_bill', default='Add Bill') }}
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Preferences Section -->
+    {% if current_user.is_authenticated %}
+                <div class="mt-3">
+                    <h6>{{ trans('bill_email_preferences', default='Email Preferences') }}</h6>
+                    <p>{{ trans('bill_unsubscribe_description', default='Click below to unsubscribe from bill reminder emails.') }}</p>
+                    <form method="POST" action="{{ url_for('bill.unsubscribe') }}" class="d-inline">
+                        {{ form.csrf_token }}
+                        <button type="submit" class="btn btn-warning btn-sm">{{ trans('bill_unsubscribe', default='Unsubscribe') }}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add form validation
+    const forms = document.querySelectorAll('.validate-form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Find first invalid field and focus it
+                const firstInvalid = form.querySelector(':invalid');
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            form.classList.add('was-validated');
+        });
+    });
+    
+    // Add real-time validation feedback for number inputs
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            if (this.checkValidity()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            }
+        });
+    });
+
+    // Translation map for help text and error messages
+    const translations = {
+        'amount_help': "{{ trans('bill_amount_help', default='Enter amount without commas (e.g., 5000 or 5000.00)') | e }}",
+        'amount_invalid': "{{ trans('bill_amount_invalid', default='Please enter a valid number (e.g., 5000 or 5000.00)') | e }}",
+        'amount_positive': "{{ trans('bill_amount_positive', default='Amount must be positive') | e }}",
+        'amount_max': "{{ trans('bill_amount_max', default='Amount cannot exceed 10 billion') | e }}",
+        'reminder_days_help': "{{ trans('bill_reminder_days_example', default='Example: 7 for a reminder 7 days before due date') | e }}",
+        'reminder_days_invalid': "{{ trans('bill_reminder_days_invalid', default='Please enter a valid integer (e.g., 7)') | e }}",
+        'reminder_days_min': "{{ trans('bill_reminder_days_min', default='Value must be at least 1') | e }}",
+        'reminder_days_max': "{{ trans('bill_reminder_days_max', default='Value must be at most 30') | e }}",
+        'bill_name_required': "{{ trans('bill_bill_name_required', default='Bill name is required') | e }}",
+        'due_date_required': "{{ trans('bill_due_date_required', default='Valid due date is required') | e }}",
+        'due_date_future': "{{ trans('bill_due_date_future_validation', default='Due date must be today or in the future') | e }}",
+        'frequency_required': "{{ trans('bill_frequency_required', default='Frequency is required') | e }}",
+        'category_required': "{{ trans('bill_category_required', default='Category is required') | e }}",
+        'status_required': "{{ trans('bill_status_required', default='Status is required') | e }}",
+        'email_required': "{{ trans('bill_email_required', default='Email notifications require an authenticated user') | e }}",
+        'link_copied': "{{ trans('general_link_copied', default='Referral link copied to clipboard!') | e }}",
+        'link_copy_failed': "{{ trans('general_link_copy_failed', default='Failed to copy link. Please copy manually.') | e }}"
+    };
+
+    // Helper function to format numbers for display
+    function formatForDisplay(value, isInteger = false) {
+        if (value === null || value === undefined || isNaN(value)) {
+            return '';
+        }
+        if (isInteger) {
+            return Math.floor(value).toString();
+        }
+        return parseFloat(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Helper function to clean input for parsing
+    function cleanForParse(value) {
+        if (!value) return '';
+        let clean = value.toString().replace(/,/g, '');
+        const parts = clean.split('.');
+        if (parts.length > 2) {
+            clean = parts[0] + '.' + parts.slice(1).join('');
+        }
+        return clean;
+    }
+
+    // Handle number inputs (amount and reminder_days)
+    document.querySelectorAll('.number-input').forEach(input => {
+        const isReminderDays = input.id === 'reminder_days' || input.id.startsWith('reminder_days_');
+        const helpId = isReminderDays ? `reminder_days_help${input.id.replace('reminder_days', '')}` : `amount_help${input.id.replace('amount', '')}`;
+        const originalHelpText = translations[isReminderDays ? 'reminder_days_help' : 'amount_help'];
+
+        // Show raw value on focus
+        input.addEventListener('focus', function() {
+            input.value = cleanForParse(input.value);
+            input.classList.remove('is-invalid');
+            document.getElementById(helpId).innerText = originalHelpText;
+        });
+
+        // Format and validate on blur
+        input.addEventListener('blur', function() {
+            let rawValue = cleanForParse(input.value);
+            let numValue;
+
+            if (isReminderDays) {
+                numValue = parseInt(rawValue) || null;
+                if (numValue !== null) {
+                    if (numValue > 30) {
+                        numValue = 30;
+                        input.classList.add('is-invalid');
+                        document.getElementById(helpId).innerText = translations['reminder_days_max'];
+                    } else if (numValue < 1) {
+                        numValue = 1;
+                        input.classList.add('is-invalid');
+                        document.getElementById(helpId).innerText = translations['reminder_days_min'];
+                    } else {
+                        input.classList.remove('is-invalid');
+                        document.getElementById(helpId).innerText = originalHelpText;
+                    }
+                    input.value = formatForDisplay(numValue, true);
+                } else {
+                    input.classList.remove('is-invalid');
+                    document.getElementById(helpId).innerText = originalHelpText;
+                    input.value = '';
+                }
+            } else {
+                numValue = parseFloat(rawValue) || 0;
+                if (numValue > 10000000000) {
+                    numValue = 10000000000;
+                    input.classList.add('is-invalid');
+                    document.getElementById(helpId).innerText = translations['amount_max'];
+                } else if (numValue < 0) {
+                    numValue = 0;
+                    input.classList.add('is-invalid');
+                    document.getElementById(helpId).innerText = translations['amount_positive'];
+                } else {
+                    input.classList.remove('is-invalid');
+                    document.getElementById(helpId).innerText = originalHelpText;
+                }
+                input.value = formatForDisplay(numValue);
+            }
+        });
+
+        // Clean invalid characters while typing
+        input.addEventListener('input', function() {
+            let value = input.value;
+            let cleanedValue;
+
+            if (isReminderDays) {
+                cleanedValue = value.replace(/[^0-9]/g, '');
+            } else {
+                cleanedValue = value.replace(/[^0-9.]/g, '');
+                const parts = cleanedValue.split('.');
+                if (parts.length > 2) {
+                    cleanedValue = parts[0] + '.' + parts.slice(1).join('');
+                }
+                if (parts[1]?.length > 2) {
+                    cleanedValue = parts[0] + '.' + parts[1].slice(0, 2);
+                }
+            }
+
+            if (input.value !== cleanedValue) {
+                const start = input.selectionStart;
+                const end = input.selectionEnd;
+                input.value = cleanedValue;
+                input.setSelectionRange(start, end);
+            }
+        });
+
+        // Handle pasted input
+        input.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text');
+            let clean = cleanForParse(pasted);
+            let numValue;
+
+            if (isReminderDays) {
+                numValue = parseInt(clean) || null;
+                if (numValue !== null) {
+                    numValue = Math.max(1, Math.min(30, numValue));
+                    input.value = formatForDisplay(numValue, true);
+                } else {
+                    input.value = '';
+                }
+                input.classList.remove('is-invalid');
+                document.getElementById(helpId).innerText = originalHelpText;
+            } else {
+                numValue = parseFloat(clean) || 0;
+                numValue = Math.max(0, Math.min(10000000000, numValue));
+                input.value = formatForDisplay(numValue);
+                input.classList.remove('is-invalid');
+                document.getElementById(helpId).innerText = originalHelpText;
+            }
+        });
+
+        // Format pre-filled values
+        if (input.value) {
+            input.dispatchEvent(new Event('blur'));
+        }
+    });
+
+    // Form submission validation
+    document.querySelectorAll('.validate-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+
+            // Validate number inputs
+            form.querySelectorAll('.number-input').forEach(input => {
+                const isReminderDays = input.id === 'reminder_days' || input.id.startsWith('reminder_days_');
+                const helpId = isReminderDays ? `reminder_days_help${input.id.replace('reminder_days', '')}` : `amount_help${input.id.replace('amount', '')}`;
+                let rawValue = cleanForParse(input.value);
+                let numValue;
+
+                if (isReminderDays) {
+                    numValue = parseInt(rawValue) || null;
+                    if (form.querySelector('#send_email' + (input.id.replace('remர
+
+                    reminder_days')?.checked && (numValue === null || numValue < 1 || numValue > 30)) {
+                        input.classList.add('is-invalid');
+                        document.getElementById(helpId).innerText = translations['reminder_days_invalid'];
+                        isValid = false;
+                    } else {
+                        input.classList.remove('is-invalid');
+                        document.getElementById(helpId).innerText = translations['reminder_days_help'];
+                        input.value = numValue ? formatForDisplay(numValue, true) : '';
+                    }
+                } else {
+                    numValue = parseFloat(rawValue) || null;
+                    if (numValue === null || numValue < 0 || numValue > 10000000000) {
+                        input.classList.add('is-invalid');
+                        document.getElementById(helpId).innerText = numValue === null ? translations['amount_invalid'] : numValue < 0 ? translations['amount_positive'] : translations['amount_max'];
+                        isValid = false;
+                    } else {
+                        input.classList.remove('is-invalid');
+                        document.getElementById(helpId).innerText = translations['amount_help'];
+                        input.value = formatForDisplay(numValue);
+                    }
+                }
+            });
+
+            // Validate required fields
+            form.querySelectorAll('input[required]:not(.number-input), select[required]').forEach(input => {
+                if (!input.value.trim()) {
+                    input.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    input.classList.remove('is-invalid');
+                }
+            });
+
+            // Validate due date
+            form.querySelectorAll('input[type="date"]').forEach(input => {
+                if (input.required && (!input.value || input.value < new Date().toISOString().split('T')[0])) {
+                    input.classList.add('is-invalid');
+                    document.getElementById('due_date_help')?.classList.add('text-danger');
+                    document.getElementById('due_date_help')?.setAttribute('data-error', translations['due_date_future']);
+                    isValid = false;
+                } else {
+                    input.classList.remove('is-invalid');
+                    document.getElementById('due_date_help')?.classList.remove('text-danger');
+                    document.getElementById('due_date_help')?.setAttribute('data-error', translations['due_date_future']);
+                }
+            });
+
+            // Validate email reminders
+            form.querySelectorAll('.form-check-input[id^="send_email"]').forEach(checkbox => {
+                if (checkbox.checked && {{ 'false' if not current_user.is_authenticated else 'true' }}) {
+                    checkbox.classList.remove('is-invalid');
+                } else if (checkbox.checked) {
+                    checkbox.classList.add('is-invalid');
+                    isValid = false;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
+            }
+        });
+    });
+
+    // Reminder toggle
+    document.querySelectorAll('.form-check-input[id^="send_email"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const form = this.closest('form');
+            const container = form.querySelector('.reminder-days-container') || form.querySelector('#reminder_days_container');
+            if (container) {
+                container.style.display = this.checked && {{ 'true' if current_user.is_authenticated else 'false' }} ? 'block' : 'none';
+            }
+        });
+    });
+
+    // Persist active tab
+    document.querySelectorAll('.nav-link').forEach(tab => {
+        tab.addEventListener('click', function() {
+            sessionStorage.setItem('billActiveTab', this.id.replace('-tab', ''));
+            window.location.href = "{{ url_for('bill.main') }}?tab=" + this.id.replace('-tab', '');
+        });
+    });
+
+    // Restore active tab
+    const activeTab = sessionStorage.getItem('billActiveTab') || "{{ active_tab }}";
+    if (activeTab) {
+        const tabButton = document.getElementById(activeTab + '-tab');
+        if (tabButton) {
+            tabButton.click();
+        }
+    }
+
+    // Chart rendering
+    const categoryChartCtx = document.getElementById('categoryChart');
+    if (categoryChartCtx) {
+        const categoriesData = {{ categories | tojson | safe }};
+        if (categoriesData && Object.keys(categoriesData).length > 0) {
+            try {
+                const labels = Object.keys(categoriesData);
+                const data = Object.values(categoriesData);
+
+                new Chart(categoryChartCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+                                '#FF6347', '#FFD700', '#6A5ACD', '#20B2AA', '#FF4500', '#4682B4',
+                                '#9ACD32', '#DC143C'
+                            ],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        let value = context.raw || 0;
+                                        return `${label}: ${formatForDisplay(value)}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                document.getElementById('chartError').style.display = 'none';
+            } catch (error) {
+                console.error("Error drawing chart:", error);
+                document.getElementById('chartError').style.display = 'block';
+            }
+        }
+    }
+
+    // Copy referral link
+    window.copyReferralLink = function() {
+        const referralLinkInput = document.getElementById('referralLink');
+        if (referralLinkInput) {
+            referralLinkInput.select();
+            referralLinkInput.setSelectionRange(0, 99999);
+            try {
+                navigator.clipboard.writeText(referralLinkInput.value).then(() => {
+                    alert(translations['link_copied']);
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                    alert(translations['link_copy_failed']);
+                });
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                alert(translations['link_copy_failed']);
+            }
+        }
+    };
+});
+</script>
+{% endblock %}

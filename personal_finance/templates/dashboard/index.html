@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}{{ t('dashboard_title', default='Dashboard') }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('dashboard_title', default='Dashboard') }}</li>
+        </ol>
+    </nav>
+
+    <!-- Page Title -->
+    <div class="page-title">
+        <h2>{{ t('dashboard_title', default='Dashboard') }}</h2>
+    </div>
+
+    {% if current_user.is_authenticated %}
+        {% if current_user.role == 'admin' %}
+            <p class="alert alert-info">{{ t('admin_view_all_data', default='You are viewing all users\' data as an admin.') }}</p>
+        {% endif %}
+
+        <!-- Personal Finance Section for Personal Users and Admins -->
+        {% if current_user.role in ['personal', 'admin'] %}
+        <div class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="text-primary">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    {{ t('general_personal_finance', default='Personal Finance') }}
+                </h3>
+                {% if personal_finance_summary.has_personal_data %}
+                    <small class="text-muted">{{ t('dashboard_personal_finance_overview', default='Your financial overview') }}</small>
+                {% endif %}
+            </div>
+
+            {% if personal_finance_summary.has_personal_data %}
+                <!-- Personal Finance Quick Stats -->
+                <div class="row g-3 mb-4">
+                    {% if personal_finance_summary.latest_budget %}
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-primary mb-2">
+                                    <i class="bi bi-pie-chart fa-2x"></i>
+                                </div>
+                                <h6 class="card-title">{{ t('budget_title', default='Budget') }}</h6>
+                                <p class="card-text">
+                                    <span class="h5 {{ 'text-success' if personal_finance_summary.latest_budget.surplus_deficit >= 0 else 'text-danger' }}">
+                                        {{ personal_finance_summary.latest_budget.surplus_deficit | format_currency }}
+                                    </span><br>
+                                    <small class="text-muted">{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</small>
+                                </p>
+                                <a href="{{ url_for('budget.main') }}" class="btn btn-outline-primary btn-sm">{{ t('general_view', default='View') }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if personal_finance_summary.total_bills > 0 %}
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-warning mb-2">
+                                    <i class="bi bi-receipt fa-2x"></i>
+                                </div>
+                                <h6 class="card-title">{{ t('bill_title', default='Bills') }}</h6>
+                                <p class="card-text">
+                                    <span class="h5 text-primary">{{ personal_finance_summary.total_bills }}</span><br>
+                                    <small class="text-muted">
+                                        {% if personal_finance_summary.overdue_bills > 0 %}
+                                            <span class="text-danger">{{ personal_finance_summary.overdue_bills }} {{ t('bill_overdue', default='overdue') }}</span>
+                                        {% else %}
+                                            {{ t('bill_all_current', default='All current') }}
+                                        {% endif %}
+                                    </small>
+                                </p>
+                                <a href="{{ url_for('bill.main') }}" class="btn btn-outline-warning btn-sm">{{ t('general_view', default='View') }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if personal_finance_summary.total_shopping_lists | default(0) > 0 %}
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-info mb-2">
+                                    <i class="bi bi-cart fa-2x"></i>
+                                </div>
+                                <h6 class="card-title">{{ t('shopping_title', default='Shopping Lists') }}</h6>
+                                <p class="card-text">
+                                    <span class="h5 text-primary">{{ personal_finance_summary.total_shopping_lists | default(0) }}</span><br>
+                                    <small class="text-muted">
+                                        {% if (personal_finance_summary.total_shopping_spent | default(0)) > (personal_finance_summary.total_shopping_budget | default(0)) %}
+                                            <span class="text-danger">{{ t('shopping_over_budget', default='Over budget') }}</span>
+                                        {% else %}
+                                            {{ t('shopping_within_budget', default='Within budget') }}
+                                        {% endif %}
+                                    </small>
+                                </p>
+                                <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-info btn-sm">{{ t('general_view', default='View') }}</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Personal Finance Quick Actions -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">{{ t('general_quick_actions', default='Quick Actions') }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('budget.main') }}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-pie-chart d-block mb-1"></i>
+                                    <small>{{ t('budget_title', default='Budget') }}</small>
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('bill.main') }}" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-receipt d-block mb-1"></i>
+                                    <small>{{ t('bill_title', default='Bills') }}</small>
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-cart d-block mb-1"></i>
+                                    <small>{{ t('shopping_title', default='Shopping Lists') }}</small>
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('credits.request_credits') }}" class="btn btn-outline-success w-100" data-bs-toggle="tooltip" title="{{ t('credits_tooltip', default='Request additional Ficore Credits to use premium features') }}">
+                                    <i class="bi bi-coin d-block mb-1"></i>
+                                    <small>{{ t('credits_dashboard', default='Ficore Credits') }}</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Getting Started Section for Personal Users -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-4">
+                            <i class="bi bi-pie-chart fa-4x text-primary opacity-50"></i>
+                        </div>
+                        <h4 class="mb-3">{{ t('dashboard_welcome_personal_finance', default='Welcome to Personal Finance') }}</h4>
+                        <p class="text-muted mb-4">{{ t('dashboard_personal_finance_intro', default='Take control of your finances with our comprehensive personal finance tools. Start by creating your first budget or tracking your bills.') }}</p>
+                        <div class="row g-2 justify-content-center">
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('budget.main') }}" class="btn btn-primary w-100">
+                                    <i class="bi bi-pie-chart d-block mb-1"></i>
+                                    <small>{{ t('budget_create_first', default='Create Budget') }}</small>
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('bill.main') }}" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-receipt d-block mb-1"></i>
+                                    <small>{{ t('bill_add_first', default='Add Bills') }}</small>
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-cart d-block mb-1"></i>
+                                    <small>{{ t('shopping_create_first', default='Create Shopping List') }}</small>
+                                </a>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <a href="{{ url_for('credits.request_credits') }}" class="btn btn-outline-success w-100" data-bs-toggle="tooltip" title="{{ t('credits_tooltip', default='Request additional Ficore Credits to use premium features') }}">
+                                    <i class="bi bi-coin d-block mb-1"></i>
+                                    <small>{{ t('credits_dashboard', default='Ficore Credits') }}</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if current_user.role == 'admin' %}
+        <div class="mb-4">
+            <h3>{{ t('general_admin_actions', default='Admin Actions') }}</h3>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-warning">{{ t('admin_dashboard', default='Admin Dashboard') }}</a>
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <h3>{{ t('dashboard_welcome_to_ficore', default='Welcome to FiCore') }}</h3>
+            <p class="text-muted">{{ t('dashboard_please_login', default='Please log in to view your dashboard.') }}</p>
+            <a href="{{ url_for('users.login') }}" class="btn btn-primary">{{ t('general_login', default='Log In') }}</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize tooltips
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+{% endblock %}

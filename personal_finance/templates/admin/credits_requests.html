@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin_dashboard', default='Admin Dashboard') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('credits_requests_title', default='Pending Credit Requests') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('credits_requests_title', default='Pending Credit Requests') }}</h2>
+
+    <form method="GET" class="mb-4">
+        {{ form.hidden_tag() }}
+        <div class="row g-2 align-items-center">
+            <div class="col-auto">
+                {{ form.status.label }}
+                {{ form.status }}
+            </div>
+            <div class="col-auto">
+                {{ form.submit }}
+            </div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if requests %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin_user_id', default='User ID') }}</th>
+                        <th>{{ t('credits_amount', default='Amount') }}</th>
+                        <th>{{ t('credits_status', default='Status') }}</th>
+                        <th>{{ t('admin_created_at', default='Created At') }}</th>
+                        <th>{{ t('ficore_credit_balance', default='Ficore Credit Balance') }}</th>
+                        <th>{{ t('general_actions', default='Actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in requests %}
+                    <tr>
+                        <td>{{ req.user_id }}</td>
+                        <td>{{ req.amount }}</td>
+                        <td>{{ req.status }}</td>
+                        <td>{{ req.created_at | format_date }}</td>
+                        <td>{{ req.ficore_credit_balance }}</td>
+                        <td>
+                            <a href="{{ url_for('admin.manage_credit_request', request_id=req._id) }}" class="btn btn-primary btn-sm">{{ t('general_manage', default='Manage') }}</a>
+                            <form action="{{ url_for('admin.delete_item', collection='credit_requests', item_id=req._id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('general_confirm_delete', default='Are you sure?') }}')">
+                                    {{ t('general_delete', default='Delete') }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{{ t('admin_no_credit_requests', default='No credit requests found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

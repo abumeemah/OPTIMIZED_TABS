@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('general_bp.home') }}">{{ t('general_home', default='Home') }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">{{ t('admin_dashboard', default='Admin Dashboard') }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ t('admin_budgets_title', default='Manage Budgets') }}</li>
+        </ol>
+    </nav>
+
+    <h2>{{ t('admin_budgets_title', default='Manage Budgets') }}</h2>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            {% if budgets %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>{{ t('admin_user_id', default='User ID') }}</th>
+                        <th>{{ t('budget_title', default='Budget') }}</th>
+                        <th>{{ t('budget_amount', default='Amount') }}</th>
+                        <th>{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</th>
+                        <th>{{ t('admin_created_at', default='Created At') }}</th>
+                        <th>{{ t('general_actions', default='Actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for budget in budgets %}
+                    <tr>
+                        <td>{{ budget.user_id }}</td>
+                        <td>{{ budget.name }}</td>
+                        <td>{{ budget.amount | format_currency }}</td>
+                        <td>{{ budget.surplus_deficit | format_currency }}</td>
+                        <td>{{ budget.created_at | format_date }}</td>
+                        <td>
+                            <form action="{{ url_for('admin.delete_item', collection='budgets', item_id=budget._id) }}" method="POST" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('general_confirm_delete', default='Are you sure?') }}')">
+                                    {{ t('general_delete', default='Delete') }}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>{{ t('admin_no_budgets', default='No budgets found.') }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="{{ lang | default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t('bill_bill_payment_reminder', default='Bill Payment Reminder') }}</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #333333; margin: 0; padding: 0; background-color: #f8f9fa;">
+    <div style="max-width: 600px; margin: 20px auto; background: #ffffff; border: 1px solid #dddddd; border-radius: 8px;">
+        <div style="background: #2E7D32; color: #ffffff; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">{{ t('bill_bill_payment_reminder', default='Bill Payment Reminder') }}</h1>
+        </div>
+        <div style="padding: 20px;">
+            <p style="margin: 0 0 10px;">{{ t('general_dear', default='Dear') }} {{ data.first_name | default(t('general_user', default='User')) }},</p>
+            <p style="margin: 0 0 20px;">{{ t('bill_bill_reminder_intro', default='This is a reminder about your upcoming or overdue bills in your FiCore Africa Bill Planner.') }}</p>
+            
+            <h2 style="color: #2E7D32; font-size: 20px; margin: 20px 0 10px;">{{ t('bill_bill_details', default='Bill Details') }}</h2>
+            {% if data.bills %}
+                <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr>
+                        <th style="padding: 10px; border: 1px solid #dddddd; background-color: #f1f1f1; font-weight: bold; text-align: left;">{{ t('bill_bill_name', default='Bill Name') }}</th>
+                        <th style="padding: 10px; border: 1px solid #dddddd; background-color: #f1f1f1; font-weight: bold; text-align: left;">{{ t('bill_amount', default='Amount') }}</th>
+                        <th style="padding: 10px; border: 1px solid #dddddd; background-color: #f1f1f1; font-weight: bold; text-align: left;">{{ t('bill_due_date', default='Due Date') }}</th>
+                        <th style="padding: 10px; border: 1px solid #dddddd; background-color: #f1f1f1; font-weight: bold; text-align: left;">{{ t('bill_status', default='Status') }}</th>
+                    </tr>
+                    {% for bill in data.bills %}
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #dddddd;">{{ bill.bill_name }}</td>
+                            <td style="padding: 10px; border: 1px solid #dddddd;">₦{{ bill.amount | format_number }}</td>
+                            <td style="padding: 10px; border: 1px solid #dddddd;">{{ bill.due_date }}</td>
+                            <td style="padding: 10px; border: 1px solid #dddddd; {% if bill.status.lower() == 'overdue' %}color: #dc3545; font-weight: bold;{% elif bill.status.lower() == 'pending' %}color: #FBC02D;{% endif %}">{{ bill.status }}</td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            {% else %}
+                <p style="margin: 0 0 20px;">{{ t('bill_no_bills_due', default='No bills are currently due or overdue.') }}</p>
+            {% endif %}
+
+            <p style="margin: 0 0 20px;">{{ t('bill_pay_on_time', default='Pay on time to avoid late fees and stay on top of your finances.') }}</p>
+
+            <p style="margin: 0 0 20px; text-align: center;">
+                <a href="{{ data.cta_url }}" style="display: inline-block; padding: 12px 24px; background: #2E7D32; color: #ffffff; text-decoration: none; border-radius: 5px; font-size: 16px;">{{ t('bill_go_to_bill_planner', default='Go to Bill Planner') }}</a>
+            </p>
+
+            <p style="margin: 0 0 20px;">{{ t('general_thank_you', default='Thank you for using FiCore Africa!') }}</p>
+
+            <p style="font-size: 12px; color: #777777; margin: 20px 0 0;">
+                {{ t('bill_unsubscribe_prompt', default='To stop receiving these emails, ') }}
+                <a href="{{ data.unsubscribe_url }}" style="color: #0288D1; text-decoration: none;">{{ t('bill_unsubscribe', default='unsubscribe here') }}</a>.
+            </p>
+        </div>
+        <div style="text-align: center; font-size: 12px; color: #777777; padding: 10px; border-top: 1px solid #dddddd;">
+            <p style="margin: 0;">{{ t('general_powered_by', default='Powered by FiCore Africa') }}</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{{ t('credits_upload_receipt', default='Upload Receipt') }} - FiCore{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <div class="page-title">
+        <h1>{{ t('credits_upload_receipt', default='Upload Receipt') }}</h1>
+        <small class="subtext">{{ t('credits_wallet_subtext', default='Tsabobin Cikin App') }}</small>
+    </div>
+    <p class="text-muted mb-4">{{ t('credits_receipt_upload_note', default='Note: Uploading a receipt will deduct 1 Ficore Credit from your balance (unless you are an admin).') }}</p>
+    <form action="{{ url_for('credits.receipt_upload') }}" method="POST" enctype="multipart/form-data" class="row g-3">
+        {{ form.hidden_tag() }}
+        <div class="col-12">
+            <label for="receipt" class="form-label">{{ t('credits_receipt', default='Receipt') }}</label>
+            {{ form.receipt(class="form-control", **{'aria-label': t('credits_receipt', default='Receipt')}) }}
+            {% if form.receipt.errors %}
+                <p class="text-danger mt-1">{{ form.receipt.errors[0] }}</p>
+            {% endif %}
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100" aria-label="{{ t('credits_upload_receipt', default='Upload Receipt') }}">{{ t('credits_upload_receipt', default='Upload Receipt') }}</button>
+        </div>
+    </form>
+    <div class="mt-3">
+        <a href="{{ url_for('credits.history') }}" class="btn btn-primary" aria-label="{{ t('credits_your_wallet', default='Your Wallet') }}">{{ t('credits_your_wallet', default='Your Wallet') }}</a>
+    </div>
+</div>
+{% endblock %}
