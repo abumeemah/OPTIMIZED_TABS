@@ -1,0 +1,39 @@
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1055;
+}
+
+.progress {
+    height: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.progress-bar {
+    transition: width 0.3s ease-in-out;
+}
+
+.empty-state {
+    padding: 2rem;
+    color: #6c757d;
+}
+
+.dark-mode .empty-state {
+    color: #adb5bd;
+}
+
+.form-control-sm {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.dark-mode .toast {
+    background-color: #343a40;
+    color: #ffffff;
+}
+
+.edit-modal .modal-body input,
+.edit-modal .modal-body select {
+    margin-bottom: 0.5rem;
+}
