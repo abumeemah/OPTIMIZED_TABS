@@ -518,3 +518,6 @@
         padding: 1.5rem;
     }
 }
+.breadcrumb-fix {
+    overflow-x: hidden;
+}
