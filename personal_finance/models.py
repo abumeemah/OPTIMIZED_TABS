@@ -347,16 +347,39 @@ def create_bill(db, bill_data):
     
     Returns:
         str: ID of the created bill record
+    
+    Raises:
+        ValueError: If required fields are missing, due_date is not a datetime object, or status is invalid
+        WriteError: If MongoDB write operation fails
+        Exception: For other unexpected errors
     """
     try:
         required_fields = ['user_id', 'bill_name', 'amount', 'due_date', 'status']
         if not all(field in bill_data for field in required_fields):
             raise ValueError(trans('general_missing_bill_fields', default='Missing required bill fields'))
+        
+        # Validate due_date is a datetime object
+        if not isinstance(bill_data['due_date'], datetime):
+            raise ValueError(trans('bill_due_date_invalid_type', default='Due date must be a datetime object'))
+        
+        # Validate status is one of the allowed values
+        valid_statuses = ['pending', 'paid', 'overdue']
+        if bill_data['status'] not in valid_statuses:
+            raise ValueError(trans('bill_status_invalid', default=f"Status must be one of: {', '.join(valid_statuses)}"))
+        
+        # Ensure amount is a float or int
+        if not isinstance(bill_data['amount'], (int, float)) or bill_data['amount'] < 0:
+            raise ValueError(trans('bill_amount_invalid', default='Amount must be a non-negative number'))
+        
         result = db.bills.insert_one(bill_data)
         logger.info(f"{trans('general_bill_created', default='Created bill record with ID')}: {result.inserted_id}", 
                    extra={'session_id': bill_data.get('session_id', 'no-session-id')})
         return str(result.inserted_id)
     except WriteError as e:
+        logger.error(f"{trans('general_bill_creation_error', default='Error creating bill record')}: {str(e)}", 
+                     exc_info=True, extra={'session_id': bill_data.get('session_id', 'no-session-id')})
+        raise
+    except ValueError as e:
         logger.error(f"{trans('general_bill_creation_error', default='Error creating bill record')}: {str(e)}", 
                      exc_info=True, extra={'session_id': bill_data.get('session_id', 'no-session-id')})
         raise
