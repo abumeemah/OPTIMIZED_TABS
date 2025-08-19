@@ -50,7 +50,7 @@
                                     </span><br>
                                     <small class="text-muted">{{ t('budget_surplus_deficit', default='Surplus/Deficit') }}</small>
                                 </p>
-                                <a href="{{ url_for('budget.main') }}" class="btn btn-outline-primary btn-sm">{{ t('general_view', default='View') }}</a>
+                                <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary btn-sm">{{ t('general_view', default='View') }}</a>
                             </div>
                         </div>
                     </div>
@@ -74,7 +74,7 @@
                                         {% endif %}
                                     </small>
                                 </p>
-                                <a href="{{ url_for('bill.main') }}" class="btn btn-outline-warning btn-sm">{{ t('general_view', default='View') }}</a>
+                                <a href="{{ url_for('bill.index') }}" class="btn btn-outline-warning btn-sm">{{ t('general_view', default='View') }}</a>
                             </div>
                         </div>
                     </div>
@@ -98,7 +98,7 @@
                                         {% endif %}
                                     </small>
                                 </p>
-                                <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-info btn-sm">{{ t('general_view', default='View') }}</a>
+                                <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-info btn-sm">{{ t('general_view', default='View') }}</a>
                             </div>
                         </div>
                     </div>
@@ -113,19 +113,19 @@
                     <div class="card-body">
                         <div class="row g-2">
                             <div class="col-md-3 col-6">
-                                <a href="{{ url_for('budget.main') }}" class="btn btn-outline-primary w-100">
+                                <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary w-100">
                                     <i class="bi bi-pie-chart d-block mb-1"></i>
                                     <small>{{ t('budget_title', default='Budget') }}</small>
                                 </a>
                             </div>
                             <div class="col-md-3 col-6">
-                                <a href="{{ url_for('bill.main') }}" class="btn btn-outline-warning w-100">
+                                <a href="{{ url_for('bill.index') }}" class="btn btn-outline-warning w-100">
                                     <i class="bi bi-receipt d-block mb-1"></i>
                                     <small>{{ t('bill_title', default='Bills') }}</small>
                                 </a>
                             </div>
                             <div class="col-md-3 col-6">
-                                <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-info w-100">
+                                <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-info w-100">
                                     <i class="bi bi-cart d-block mb-1"></i>
                                     <small>{{ t('shopping_title', default='Shopping Lists') }}</small>
                                 </a>
@@ -150,19 +150,19 @@
                         <p class="text-muted mb-4">{{ t('dashboard_personal_finance_intro', default='Take control of your finances with our comprehensive personal finance tools. Start by creating your first budget or tracking your bills.') }}</p>
                         <div class="row g-2 justify-content-center">
                             <div class="col-md-3 col-6">
-                                <a href="{{ url_for('budget.main') }}" class="btn btn-primary w-100">
+                                <a href="{{ url_for('budget.index') }}" class="btn btn-primary w-100">
                                     <i class="bi bi-pie-chart d-block mb-1"></i>
                                     <small>{{ t('budget_create_first', default='Create Budget') }}</small>
                                 </a>
                             </div>
                             <div class="col-md-3 col-6">
-                                <a href="{{ url_for('bill.main') }}" class="btn btn-outline-primary w-100">
+                                <a href="{{ url_for('bill.index') }}" class="btn btn-outline-primary w-100">
                                     <i class="bi bi-receipt d-block mb-1"></i>
                                     <small>{{ t('bill_add_first', default='Add Bills') }}</small>
                                 </a>
                             </div>
                             <div class="col-md-3 col-6">
-                                <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-info w-100">
+                                <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-info w-100">
                                     <i class="bi bi-cart d-block mb-1"></i>
                                     <small>{{ t('shopping_create_first', default='Create Shopping List') }}</small>
                                 </a>
