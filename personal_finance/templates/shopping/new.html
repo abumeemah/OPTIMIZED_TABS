@@ -27,7 +27,7 @@
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('shopping.new') }}" id="createListForm" class="validate-form">
-                        {{ csrf_token() }}
+                        {{ form.hidden_tag() }}
                         <input type="hidden" name="action" value="create_list">
                         
                         <div class="mb-3">
