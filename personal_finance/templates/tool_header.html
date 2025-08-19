@@ -20,15 +20,15 @@
             </div>
             <div class="col-md-4 text-end">
                 <div class="btn-group" role="group" aria-label="{{ t('general_personal_finance_tools', default='Personal Finance Tools') }}">
-                    <a href="{{ url_for('budget.main') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'budget.main' else '' }}" 
+                    <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'budget.index' else '' }}" 
                        data-bs-toggle="tooltip" title="{{ t('budget_title', default='Budget Planner') }}">
                         <i class="fas fa-calculator"></i>
                     </a>
-                    <a href="{{ url_for('bill.main') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'bill.main' else '' }}" 
+                    <a href="{{ url_for('bill.index') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'bill.index' else '' }}" 
                        data-bs-toggle="tooltip" title="{{ t('bill_title', default='Bill Manager') }}">
                         <i class="fas fa-file-invoice"></i>
                     </a>
-                    <a href="{{ url_for('shopping.main') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'shopping.main' else '' }}" 
+                    <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'shopping.index' else '' }}" 
                        data-bs-toggle="tooltip" title="{{ t('shopping_title', default='Shopping List Planner') }}">
                         <i class="fas fa-shopping-cart"></i>
                     </a>
