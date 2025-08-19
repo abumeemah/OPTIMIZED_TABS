@@ -58,19 +58,19 @@
         <section class="personal-section-card personal-quick-actions-grid">
             <h3 class="personal-section-title visually-hidden">{{ t('plan_your_spending_quick_actions', default='Quick Actions') }}</h3>
             <div class="personal-actions-grid">
-                <a href="{{ url_for('budget.main', _external=True) | e }}" class="personal-quick-action-item personal-budget-management text-decoration-none" aria-label="{{ t('budget', default='Budget') | e }}">
+                <a href="{{ url_for('budget.index', _external=True) | e }}" class="personal-quick-action-item personal-budget-management text-decoration-none" aria-label="{{ t('budget', default='Budget') | e }}">
                     <div class="personal-action-icon-wrapper">
                         <i class="bi bi-pie-chart personal-action-icon"></i>
                     </div>
                     <div class="personal-action-label">{{ t('budget', default='Budget') }}</div>
                 </a>
-                <a href="{{ url_for('bill.main', _external=True) | e }}" class="personal-quick-action-item personal-bills-management text-decoration-none" aria-label="{{ t('bills', default='Bills') | e }}">
+                <a href="{{ url_for('bill.index', _external=True) | e }}" class="personal-quick-action-item personal-bills-management text-decoration-none" aria-label="{{ t('bills', default='Bills') | e }}">
                     <div class="personal-action-icon-wrapper">
                         <i class="bi bi-receipt personal-action-icon"></i>
                     </div>
                     <div class="personal-action-label">{{ t('bills', default='Bills') }}</div>
                 </a>
-                <a href="{{ url_for('shopping.main', _external=True) | e }}" class="personal-quick-action-item personal-shopping-management text-decoration-none" aria-label="{{ t('shopping', default='Shopping') | e }}">
+                <a href="{{ url_for('shopping.index', _external=True) | e }}" class="personal-quick-action-item personal-shopping-management text-decoration-none" aria-label="{{ t('shopping', default='Shopping') | e }}">
                     <div class="personal-action-icon-wrapper">
                         <i class="bi bi-cart personal-action-icon"></i>
                     </div>
