@@ -13,6 +13,7 @@ from utils import get_all_recent_activities, requires_role, is_admin, get_mongo_
 from models import create_bill
 from decimal import Decimal, InvalidOperation
 import re
+import uuid
 
 bill_bp = Blueprint('bill', __name__, template_folder='templates/', url_prefix='/bill')
 
@@ -142,6 +143,9 @@ class BillFormProcessor:
                 cleaned_data['due_date'] = BillFormProcessor.validate_date_input(form_data['due_date'])
                 if cleaned_data['due_date'] is None:
                     errors.append(trans('bill_due_date_required', default="Valid due date is required"))
+                else:
+                    # Convert date to datetime for MongoDB
+                    cleaned_data['due_date'] = datetime.combine(cleaned_data['due_date'], datetime.min.time())
             except ValueError as e:
                 errors.append(str(e))
             
@@ -159,8 +163,10 @@ class BillFormProcessor:
                 errors.append(trans('bill_category_invalid', default=f"Category must be one of: {', '.join(valid_categories)}"))
             cleaned_data['category'] = category
             
-            valid_statuses = ['unpaid', 'paid', 'pending', 'overdue']
+            valid_statuses = ['pending', 'paid', 'overdue']
             status = form_data['status'].strip().lower()
+            if status == 'unpaid':
+                status = 'pending'  # Map 'unpaid' to 'pending'
             if status not in valid_statuses:
                 errors.append(trans('bill_status_invalid', default=f"Status must be one of: {', '.join(valid_statuses)}"))
             cleaned_data['status'] = status
@@ -204,8 +210,31 @@ def format_currency(value):
         current_app.logger.warning(f"Format Error: input={value}, error={str(e)}", extra={'session_id': session.get('sid', 'unknown')})
         return "0.00"
 
+def format_date(value):
+    """Format a date or datetime object to string."""
+    try:
+        if isinstance(value, str):
+            parsed_date = datetime.strptime(value, '%Y-%m-%d')
+        elif isinstance(value, datetime):
+            parsed_date = value
+        elif isinstance(value, date):
+            parsed_date = datetime.combine(value, datetime.min.time())
+        else:
+            raise ValueError("Invalid date type")
+        return parsed_date.strftime('%Y-%m-%d')
+    except (ValueError, TypeError) as e:
+        current_app.logger.warning(f"Format Date Error: input={value}, error={str(e)}", extra={'session_id': session.get('sid', 'unknown')})
+        return datetime.utcnow().strftime('%Y-%m-%d')
+
 def calculate_next_due_date(due_date, frequency):
     """Calculate the next due date based on frequency."""
+    if isinstance(due_date, str):
+        due_date = datetime.strptime(due_date, '%Y-%m-%d')
+    elif isinstance(due_date, date):
+        due_date = datetime.combine(due_date, datetime.min.time())
+    elif not isinstance(due_date, datetime):
+        raise ValueError(trans('bill_due_date_invalid_type', default="Invalid date type"))
+    
     if frequency == 'weekly':
         return due_date + timedelta(days=7)
     elif frequency == 'monthly':
@@ -304,12 +333,11 @@ class BillForm(FlaskForm):
     status = SelectField(
         trans('bill_status', default='Status'),
         choices=[
-            ('unpaid', trans('bill_status_unpaid', default='Unpaid')),
-            ('paid', trans('bill_status_paid', default='Paid')),
             ('pending', trans('bill_status_pending', default='Pending')),
+            ('paid', trans('bill_status_paid', default='Paid')),
             ('overdue', trans('bill_status_overdue', default='Overdue'))
         ],
-        default='unpaid',
+        default='pending',
         validators=[DataRequired(message=trans('bill_status_required', default='Status is required'))]
     )
     send_email = BooleanField(
@@ -393,12 +421,11 @@ class EditBillForm(FlaskForm):
     status = SelectField(
         trans('bill_status', default='Status'),
         choices=[
-            ('unpaid', trans('bill_status_unpaid', default='Unpaid')),
-            ('paid', trans('bill_status_paid', default='Paid')),
             ('pending', trans('bill_status_pending', default='Pending')),
+            ('paid', trans('bill_status_paid', default='Paid')),
             ('overdue', trans('bill_status_overdue', default='Overdue'))
         ],
-        default='unpaid',
+        default='pending',
         validators=[DataRequired(message=trans('bill_status_required', default='Status is required'))]
     )
     send_email = BooleanField(
@@ -494,7 +521,6 @@ def new():
         if request.method == 'POST':
             action = request.form.get('action')
             if action == 'add_bill':
-                # Adding bills is now free - no credit check needed
                 try:
                     form_data = {
                         'bill_name': request.form.get('bill_name', ''),
@@ -524,7 +550,7 @@ def new():
                             'first_name': current_user.get_first_name() if current_user.is_authenticated else '',
                             'bill_name': cleaned_data['bill_name'],
                             'amount': float(cleaned_data['amount']),
-                            'due_date': cleaned_data['due_date'].isoformat(),
+                            'due_date': cleaned_data['due_date'],
                             'frequency': cleaned_data['frequency'],
                             'category': cleaned_data['category'],
                             'status': cleaned_data['status'],
@@ -533,7 +559,6 @@ def new():
                             'created_at': datetime.utcnow()
                         }
                         created_bill_id = create_bill(db, bill_data)
-                        # Adding bills is now free - no credit deduction needed
                         current_app.logger.info(f"Bill {created_bill_id} added successfully for user {bill_data['user_email']}", extra={'session_id': session.get('sid', 'unknown')})
                         flash(trans('bill_added_success', default='Bill added successfully!'), 'success')
                         if cleaned_data['send_email'] and bill_data['user_email']:
@@ -551,7 +576,7 @@ def new():
                                         'bills': [{
                                             'bill_name': bill_data['bill_name'],
                                             'amount': format_currency(bill_data['amount']),
-                                            'due_date': bill_data['due_date'],
+                                            'due_date': bill_data['due_date'].strftime('%Y-%m-%d'),
                                             'category': bill_data['category'],
                                             'status': bill_data['status']
                                         }],
@@ -591,7 +616,6 @@ def new():
                     current_app.logger.warning(f"Bill {bill_id} not found for update/delete/toggle", extra={'session_id': session.get('sid', 'unknown')})
                     flash(trans('bill_not_found', default='Bill not found.'), 'danger')
                     return redirect(url_for('bill.manage'))
-                # Updating bills is now free - no credit check needed
                 if action == 'update_bill':
                     try:
                         form_data = {
@@ -617,7 +641,6 @@ def new():
                                 'updated_at': datetime.utcnow()
                             }
                             bills_collection.update_one({'_id': ObjectId(bill_id), **filter_kwargs}, {'$set': update_data})
-                            # Updating bills is now free - no credit deduction needed
                             current_app.logger.info(f"Bill {bill_id} updated successfully", extra={'session_id': session.get('sid', 'unknown')})
                             flash(trans('bill_updated_success', default='Bill updated successfully!'), 'success')
                             if cleaned_data['amount'] > 100000:
@@ -645,11 +668,9 @@ def new():
                             action='delete_bill'
                         )
                         bills_collection.delete_one({'_id': ObjectId(bill_id), **filter_kwargs})
-                        # Deduct FC for delete operation (new rule: only delete and PDF export cost credits)
                         if current_user.is_authenticated and not is_admin():
                             if not deduct_ficore_credits(db, current_user.id, 1, 'delete_bill', bill_id):
                                 current_app.logger.warning(f"Failed to deduct Ficore Credit for deleting bill {bill_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
-                                # Don't fail the operation if credit deduction fails - bill is already deleted
                         current_app.logger.info(f"Bill {bill_id} deleted successfully", extra={'session_id': session.get('sid', 'unknown')})
                         flash(trans('bill_deleted_success', default='Bill deleted successfully!'), 'success')
                     except Exception as e:
@@ -657,7 +678,7 @@ def new():
                         flash(trans('bill_delete_failed', default='Failed to delete bill.'), 'danger')
                     return redirect(url_for('bill.manage'))
                 elif action == 'toggle_status':
-                    new_status = 'paid' if bill['status'] == 'unpaid' else 'unpaid'
+                    new_status = 'paid' if bill['status'] == 'pending' else 'pending'
                     try:
                         log_tool_usage(
                             tool_name='bill',
@@ -667,20 +688,20 @@ def new():
                             action='toggle_bill_status'
                         )
                         bills_collection.update_one({'_id': ObjectId(bill_id), **filter_kwargs}, {'$set': {'status': new_status, 'updated_at': datetime.utcnow()}})
-                        # Toggling status is now free - no credit deduction needed
                         if new_status == 'paid' and bill['frequency'] != 'one-time':
                             try:
                                 due_date = bill['due_date']
                                 if isinstance(due_date, str):
-                                    due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+                                    due_date = datetime.strptime(due_date, '%Y-%m-%d')
+                                elif isinstance(due_date, date):
+                                    due_date = datetime.combine(due_date, datetime.min.time())
                                 new_due_date = calculate_next_due_date(due_date, bill['frequency'])
                                 new_bill = bill.copy()
                                 new_bill['_id'] = ObjectId()
-                                new_bill['due_date'] = new_due_date.isoformat()
-                                new_bill['status'] = 'unpaid'
+                                new_bill['due_date'] = new_due_date
+                                new_bill['status'] = 'pending'
                                 new_bill['created_at'] = datetime.utcnow()
                                 created_recurring_bill_id = create_bill(db, new_bill)
-                                # Adding recurring bills is now free - no credit deduction needed
                                 current_app.logger.info(f"Recurring bill {created_recurring_bill_id} created for {bill['bill_name']}", extra={'session_id': session.get('sid', 'unknown')})
                                 flash(trans('bill_new_recurring_bill_success', default='New recurring bill created for {bill_name}.').format(bill_name=bill['bill_name']), 'success')
                             except Exception as e:
@@ -696,8 +717,8 @@ def new():
         bills = bills_collection.find(filter_kwargs).sort('created_at', -1).limit(100)
         bills_data = []
         edit_forms = {}
-        paid_count = unpaid_count = overdue_count = pending_count = 0
-        total_paid = total_unpaid = total_overdue = total_bills = 0.0
+        paid_count = pending_count = overdue_count = 0
+        total_paid = total_overdue = total_bills = 0.0
         categories = {}
         due_today = []
         due_week = []
@@ -710,6 +731,8 @@ def new():
                 due_date = bill['due_date']
                 if isinstance(due_date, str):
                     due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+                elif isinstance(due_date, datetime):
+                    due_date = due_date.date()
                 elif not isinstance(due_date, date):
                     current_app.logger.warning(f"Invalid due_date for bill {bill_id}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
                     due_date = today
@@ -725,7 +748,7 @@ def new():
                 'due_date_formatted': due_date.strftime('%Y-%m-%d'),
                 'frequency': bill.get('frequency', 'one-time'),
                 'category': bill.get('category', 'other'),
-                'status': bill.get('status', 'unpaid'),
+                'status': bill.get('status', 'pending'),
                 'send_email': bill.get('send_email', False),
                 'reminder_days': bill.get('reminder_days', None),
                 'created_at': bill.get('created_at', datetime.utcnow()).strftime('%Y-%m-%d')
@@ -748,9 +771,6 @@ def new():
                 if bill_data['status'] == 'paid':
                     paid_count += 1
                     total_paid += bill_amount
-                elif bill_data['status'] == 'unpaid':
-                    unpaid_count += 1
-                    total_unpaid += bill_amount
                 elif bill_data['status'] == 'overdue':
                     overdue_count += 1
                     total_overdue += bill_amount
@@ -765,10 +785,9 @@ def new():
                     due_month.append((bill_id, bill_data, edit_form))
                 if today < bill_due_date:
                     upcoming_bills.append((bill_id, bill_data, edit_form))
-                # Add insights based on bill data
                 if bill_due_date <= today and bill_data['status'] not in ['paid', 'pending']:
                     insights.append(trans('bill_insight_overdue', default=f"Bill '{bill_data['bill_name']}' is overdue. Consider paying it soon."))
-                elif bill_due_date <= (today + timedelta(days=7)) and bill_data['status'] == 'unpaid':
+                elif bill_due_date <= (today + timedelta(days=7)) and bill_data['status'] == 'pending':
                     insights.append(trans('bill_insight_due_soon', default=f"Bill '{bill_data['bill_name']}' is due soon. Plan your payment."))
             except (ValueError, TypeError) as e:
                 current_app.logger.warning(f"Invalid amount for bill {bill_id}: {bill.get('amount')}, error: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
@@ -844,30 +863,41 @@ def dashboard():
         bills_collection = db.bills
         bills = list(bills_collection.find(filter_kwargs).sort('created_at', -1))
         
-        # Process bills data for dashboard
         bills_data = []
-        paid_count = pending_count = overdue_count = unpaid_count = 0
-        total_paid = total_overdue = total_unpaid = 0.0
+        paid_count = pending_count = overdue_count = 0
+        total_paid = total_overdue = 0.0
         upcoming_bills = []
         
         for bill in bills:
+            due_date = bill['due_date']
+            if isinstance(due_date, str):
+                try:
+                    due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+                except ValueError:
+                    current_app.logger.warning(f"Invalid due_date for bill {bill['_id']}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
+                    due_date = date.today()
+            elif isinstance(due_date, datetime):
+                due_date = due_date.date()
+            elif not isinstance(due_date, date):
+                current_app.logger.warning(f"Invalid due_date type for bill {bill['_id']}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
+                due_date = date.today()
+                
             bill_data = {
                 'id': str(bill['_id']),
                 'bill_name': bill.get('bill_name', ''),
                 'amount': format_currency(bill.get('amount', 0.0)),
                 'amount_raw': float(bill.get('amount', 0.0)),
-                'due_date': bill.get('due_date'),
-                'due_date_formatted': format_date(bill.get('due_date')),
+                'due_date': due_date,
+                'due_date_formatted': due_date.strftime('%Y-%m-%d'),
                 'frequency': bill.get('frequency', 'one-time'),
                 'category': bill.get('category', 'other'),
-                'status': bill.get('status', 'unpaid'),
+                'status': bill.get('status', 'pending'),
                 'send_email': bill.get('send_email', False),
                 'reminder_days': bill.get('reminder_days', 7),
-                'created_at': bill.get('created_at')
+                'created_at': bill.get('created_at', datetime.utcnow()).strftime('%Y-%m-%d')
             }
             bills_data.append((bill_data['id'], bill_data, None))
             
-            # Count by status
             if bill_data['status'] == 'paid':
                 paid_count += 1
                 total_paid += bill_data['amount_raw']
@@ -876,15 +906,10 @@ def dashboard():
             elif bill_data['status'] == 'overdue':
                 overdue_count += 1
                 total_overdue += bill_data['amount_raw']
-            else:
-                unpaid_count += 1
-                total_unpaid += bill_data['amount_raw']
             
-            # Add to upcoming bills if not paid
             if bill_data['status'] != 'paid':
                 upcoming_bills.append((bill_data['id'], bill_data, None))
 
-        # Categories for chart
         categories = {}
         for _, bill_data, _ in bills_data:
             category = bill_data['category']
@@ -905,14 +930,12 @@ def dashboard():
         return render_template(
             'bill/dashboard.html',
             bills_data=bills_data,
-            upcoming_bills=upcoming_bills[:5],  # Show only first 5
+            upcoming_bills=upcoming_bills[:5],
             paid_count=paid_count,
             pending_count=pending_count,
             overdue_count=overdue_count,
-            unpaid_count=unpaid_count,
             total_paid=format_currency(total_paid),
             total_overdue=format_currency(total_overdue),
-            total_unpaid=format_currency(total_unpaid),
             categories=categories,
             tips=tips,
             insights=insights,
@@ -929,10 +952,8 @@ def dashboard():
             paid_count=0,
             pending_count=0,
             overdue_count=0,
-            unpaid_count=0,
             total_paid=format_currency(0.0),
             total_overdue=format_currency(0.0),
-            total_unpaid=format_currency(0.0),
             categories={},
             tips=tips,
             insights=[],
@@ -978,16 +999,12 @@ def manage():
                 return redirect(url_for('bill.manage'))
 
             if action == 'delete_bill':
-                # No credit check needed upfront - will deduct after successful deletion
-                
                 try:
                     result = bills_collection.delete_one({'_id': ObjectId(bill_id), **filter_kwargs})
                     if result.deleted_count > 0:
-                        # Deduct FC for delete operation (new rule: only delete and PDF export cost credits)
                         if current_user.is_authenticated and not is_admin():
                             if not deduct_ficore_credits(db, current_user.id, 1, 'delete_bill', bill_id):
                                 current_app.logger.warning(f"Failed to deduct Ficore Credit for deleting bill {bill_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
-                                # Don't fail the operation if credit deduction fails - bill is already deleted
                         flash(trans('bill_deleted_success', default='Bill deleted successfully!'), 'success')
                     else:
                         flash(trans('bill_not_found', default='Bill not found.'), 'danger')
@@ -997,7 +1014,7 @@ def manage():
                 return redirect(url_for('bill.manage'))
 
             elif action == 'toggle_status':
-                new_status = 'paid' if bill['status'] != 'paid' else 'unpaid'
+                new_status = 'paid' if bill['status'] != 'paid' else 'pending'
                 try:
                     bills_collection.update_one(
                         {'_id': ObjectId(bill_id), **filter_kwargs},
@@ -1014,11 +1031,24 @@ def manage():
         bills_data = []
         
         for bill in bills:
+            due_date = bill['due_date']
+            if isinstance(due_date, str):
+                try:
+                    due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+                except ValueError:
+                    current_app.logger.warning(f"Invalid due_date for bill {bill['_id']}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
+                    due_date = date.today()
+            elif isinstance(due_date, datetime):
+                due_date = due_date.date()
+            elif not isinstance(due_date, date):
+                current_app.logger.warning(f"Invalid due_date type for bill {bill['_id']}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
+                due_date = date.today()
+                
             edit_form = EditBillForm()
             edit_form.amount.data = bill.get('amount', 0.0)
             edit_form.frequency.data = bill.get('frequency', 'one-time')
             edit_form.category.data = bill.get('category', 'utilities')
-            edit_form.status.data = bill.get('status', 'unpaid')
+            edit_form.status.data = bill.get('status', 'pending')
             edit_form.send_email.data = bill.get('send_email', False)
             edit_form.reminder_days.data = bill.get('reminder_days', 7)
             
@@ -1027,14 +1057,14 @@ def manage():
                 'bill_name': bill.get('bill_name', ''),
                 'amount': format_currency(bill.get('amount', 0.0)),
                 'amount_raw': float(bill.get('amount', 0.0)),
-                'due_date': bill.get('due_date'),
-                'due_date_formatted': format_date(bill.get('due_date')),
+                'due_date': due_date,
+                'due_date_formatted': due_date.strftime('%Y-%m-%d'),
                 'frequency': bill.get('frequency', 'one-time'),
                 'category': bill.get('category', 'other'),
-                'status': bill.get('status', 'unpaid'),
+                'status': bill.get('status', 'pending'),
                 'send_email': bill.get('send_email', False),
                 'reminder_days': bill.get('reminder_days', 7),
-                'created_at': bill.get('created_at')
+                'created_at': bill.get('created_at', datetime.utcnow()).strftime('%Y-%m-%d')
             }
             bills_data.append((bill_data['id'], bill_data, edit_form))
 
@@ -1071,7 +1101,7 @@ def summary():
         bills_collection = db.bills
         today = date.today()
         pipeline = [
-            {'$match': {**filter_kwargs, 'status': {'$ne': 'paid'}, 'due_date': {'$gte': today.isoformat()}}},
+            {'$match': {**filter_kwargs, 'status': {'$ne': 'paid'}, 'due_date': {'$gte': today}}},
             {'$group': {'_id': None, 'totalUpcomingBills': {'$sum': '$amount'}}}
         ]
         result = list(bills_collection.aggregate(pipeline))
@@ -1137,7 +1167,6 @@ def export_pdf():
     db = get_mongo_db()
     
     try:
-        # Check FC balance before generating PDF
         if current_user.is_authenticated and not is_admin():
             if not check_ficore_credit_balance(required_amount=2, user_id=current_user.id):
                 flash(trans('bill_insufficient_credits_pdf', default='Insufficient credits for PDF export. PDF export costs 2 FC.'), 'danger')
@@ -1150,7 +1179,6 @@ def export_pdf():
             flash(trans('bill_no_data_for_pdf', default='No bills found for PDF export.'), 'warning')
             return redirect(url_for('bill.manage'))
         
-        # Generate PDF
         from reportlab.pdfgen import canvas
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import inch
@@ -1161,21 +1189,17 @@ def export_pdf():
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         
-        # Draw header
         draw_ficore_pdf_header(p, current_user, y_start=height - 50)
         
-        # Title
         p.setFont("Helvetica-Bold", 16)
         p.drawString(50, height - 120, "Bills Report")
         
-        # Report details
         p.setFont("Helvetica", 12)
         y = height - 150
         p.drawString(50, y, f"Generated: {format_date(datetime.utcnow())}")
         p.drawString(50, y - 20, f"Total Bills: {len(bills)}")
         y -= 60
         
-        # Bills table header
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Bill Name")
         p.drawString(200, y, "Amount")
@@ -1184,15 +1208,13 @@ def export_pdf():
         p.drawString(420, y, "Category")
         y -= 20
         
-        # Bills
         p.setFont("Helvetica", 9)
         total_amount = 0
         for bill in bills:
-            if y < 50:  # New page if needed
+            if y < 50:
                 p.showPage()
                 draw_ficore_pdf_header(p, current_user, y_start=height - 50)
                 y = height - 120
-                # Redraw header
                 p.setFont("Helvetica-Bold", 10)
                 p.drawString(50, y, "Bill Name")
                 p.drawString(200, y, "Amount")
@@ -1202,16 +1224,23 @@ def export_pdf():
                 y -= 20
                 p.setFont("Helvetica", 9)
             
+            due_date = bill.get('due_date')
+            if isinstance(due_date, datetime):
+                due_date_str = due_date.strftime('%Y-%m-%d')
+            elif isinstance(due_date, date):
+                due_date_str = due_date.strftime('%Y-%m-%d')
+            else:
+                due_date_str = format_date(due_date)
+                
             p.drawString(50, y, bill.get('bill_name', '')[:20])
             amount = bill.get('amount', 0)
             p.drawString(200, y, format_currency(amount))
-            p.drawString(280, y, format_date(bill.get('due_date')))
+            p.drawString(280, y, due_date_str)
             p.drawString(360, y, bill.get('status', 'pending'))
             p.drawString(420, y, bill.get('category', 'other')[:15])
             total_amount += amount
             y -= 15
         
-        # Total
         y -= 20
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, f"Total Amount: {format_currency(total_amount)}")
@@ -1219,7 +1248,6 @@ def export_pdf():
         p.save()
         buffer.seek(0)
         
-        # Deduct FC for PDF export (new rule: only delete and PDF export cost credits)
         if current_user.is_authenticated and not is_admin():
             if not deduct_ficore_credits(db, current_user.id, 2, 'export_bills_pdf'):
                 flash(trans('bill_credit_deduction_failed', default='Failed to deduct credits for PDF export.'), 'danger')
