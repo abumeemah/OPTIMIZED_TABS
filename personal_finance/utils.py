@@ -3,6 +3,7 @@ import logging
 import uuid
 import os
 import certifi
+from flask_caching import Cache
 from datetime import datetime
 from flask import session, has_request_context, current_app, url_for, request
 from flask_mail import Mail
@@ -24,6 +25,7 @@ from flask_wtf.csrf import CSRFProtect
 login_manager = LoginManager()
 flask_session = Session()
 csrf = CSRFProtect()
+cache = Cache()
 limiter = Limiter(key_func=get_remote_address, default_limits=['200 per day', '50 per hour'], storage_uri='memory://')
 
 # Set up logging with session support
@@ -141,7 +143,7 @@ _PERSONAL_EXPLORE_FEATURES = [
         "icon": "bi-wallet"
     },
     {
-        "endpoint": "budget.index",
+        "endpoint": "bill.index",
         "label": "Bills",
         "label_key": "bill_bill_planner",
         "description_key": "bill_bill_desc",
@@ -445,9 +447,6 @@ def log_tool_usage(action, tool_name=None, details=None, user_id=None, db=None, 
             }
         )
         raise RuntimeError(f"Failed to log tool usage: {str(e)}")
-
-# All users must be authenticated - no anonymous sessions
-
 
 def clean_currency(value, max_value=10000000000):
     """
@@ -1078,6 +1077,43 @@ def send_whatsapp_reminder(phone, message):
     logger.info(f"WhatsApp reminder sent to {phone}: {message}")
     return True, {'status': 'sent'}
 
+def get_budgets(user_id=None, is_admin_user=False, db=None, limit=10):
+    """
+    Fetch budgets from MongoDB budgets collection, with caching.
+    
+    Args:
+        user_id: ID of the user (optional for admin)
+        is_admin_user: Whether the user is an admin (default: False)
+        db: MongoDB database instance (optional)
+        limit: Maximum number of budgets to return (default: 10)
+    
+    Returns:
+        list: List of budget records
+    """
+    @cache.memoize(timeout=300)  # Cache for 5 minutes
+    def _get_budgets(user_id, is_admin_user, limit):
+        if db is None:
+            db = get_mongo_db()
+        
+        filter_criteria = {} if is_admin_user else {'user_id': str(user_id)} if user_id else {}
+        
+        try:
+            budgets = list(db.budgets.find(filter_criteria).sort('created_at', -1).limit(limit))
+            logger.debug(
+                f"Fetched {len(budgets)} budgets for {'user ' + str(user_id) if user_id else 'all'}, is_admin={is_admin_user}, limit={limit}",
+                extra={'session_id': session.get('sid', 'unknown') if has_request_context() else 'unknown', 'ip': request.remote_addr or 'unknown'}
+            )
+            return budgets
+        except Exception as e:
+            logger.error(
+                f"Failed to fetch budgets: {str(e)}",
+                exc_info=True,
+                extra={'session_id': session.get('sid', 'unknown') if has_request_context() else 'unknown', 'ip': request.remote_addr or 'unknown'}
+            )
+            raise
+    
+    return _get_budgets(user_id, is_admin_user, limit)
+
 # Export all functions and variables
 __all__ = [
     'login_manager', 'clean_currency', 'log_tool_usage', 'flask_session', 'csrf', 'limiter',
@@ -1089,5 +1125,5 @@ __all__ = [
     'PERSONAL_TOOLS', 'PERSONAL_NAV', 'PERSONAL_EXPLORE_FEATURES',
     'ADMIN_TOOLS', 'ADMIN_NAV', 'ADMIN_EXPLORE_FEATURES', 'ALL_TOOLS', 'get_explore_features',
     'get_recent_activities', 'get_all_recent_activities', 'check_ficore_credit_balance',
-    'send_sms_reminder', 'send_whatsapp_reminder'
+    'send_sms_reminder', 'send_whatsapp_reminder', 'get_budgets'
 ]
