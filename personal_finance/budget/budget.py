@@ -2,7 +2,7 @@ from flask import Blueprint, request, session, redirect, url_for, render_templat
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from wtforms import FloatField, IntegerField, SubmitField, StringField, FieldList, FormField
-from wtforms.validators import DataRequired, NumberRange, ValidationError, Optional
+from wtforms.validators import DataRequired, NumberRange, ValidationError, Optional, Length
 from flask_login import current_user, login_required
 import utils
 from utils import logger
@@ -11,7 +11,6 @@ import re
 from translations import trans
 from bson import ObjectId
 from models import log_tool_usage, create_budget
-from wtforms.validators import Length
 import uuid
 
 budget_bp = Blueprint(
