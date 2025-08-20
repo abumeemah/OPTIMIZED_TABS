@@ -127,6 +127,19 @@ def initialize_app_data(app):
                                 'dependents': {'bsonType': ['int', 'double'], 'minimum': 0},
                                 'miscellaneous': {'bsonType': 'double', 'minimum': 0},
                                 'others': {'bsonType': 'double', 'minimum': 0},
+                                'custom_categories': {
+                                    'bsonType': 'array',
+                                    'items': {
+                                        'bsonType': 'object',
+                                        'required': ['name', 'amount'],
+                                        'properties': {
+                                            'name': {'bsonType': 'string', 'maxLength': 50},
+                                            'amount': {'bsonType': 'double', 'minimum': 0, 'maximum': 10000000000}
+                                        },
+                                        'additionalProperties': False
+                                    },
+                                    'maxItems': 20
+                                },
                                 'created_at': {'bsonType': 'date'}
                             }
                         }
@@ -537,6 +550,7 @@ def to_dict_budget(record):
         'dependents': record.get('dependents', 0),
         'miscellaneous': record.get('miscellaneous', 0),
         'others': record.get('others', 0),
+        'custom_categories': record.get('custom_categories', []),
         'created_at': record.get('created_at')
     }
 
@@ -815,7 +829,7 @@ def create_shopping_items_bulk(db, items_data):
         
         result = db.shopping_items.insert_many(items_data)
         logger.info(f"Created {len(result.inserted_ids)} shopping items", 
-                   extra={'session_id': items_data[0].get('session_id', 'no-session-id')})
+                   extra={'session_id': items_data[0].get('session_id', 'no-session-id') if items_data else 'no-session-id'})
         return [str(id) for id in result.inserted_ids]
     except WriteError as e:
         logger.error(f"Error creating bulk shopping items: {str(e)}", 
