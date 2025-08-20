@@ -127,7 +127,7 @@
                             </div>
                             <div class="col-md-3 mb-3">
                                 {{ item_form.price.label(class="form-label") }}
-                                {{ item_form.price(class="form-control", step="0.01", min="0", placeholder="0.00", required=True) }}
+                                {{ item_form.price(class="form-control", type="number", step="0.01", min="0", placeholder="0.00", required=True) }}
                                 {% for error in item_form.price.errors %}
                                     <small class="text-danger">{{ error }}</small>
                                 {% endfor %}
@@ -180,7 +180,7 @@
                 </div>
                 <div class="card-body">
                     {% if items %}
-                        <div class="table-responsive">
+{$                        <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead class="table-light">
                                     <tr>
@@ -256,6 +256,7 @@
                 <input type="hidden" name="item_id" id="edit_item_id">
                 
                 <div class="modal-body">
+                    <div id="form-error-alert" class="alert alert-danger d-none" role="alert"></div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             {{ item_form.name.label(class="form-label") }}
@@ -268,12 +269,13 @@
                             {{ item_form.quantity.label(class="form-label") }}
                             {{ item_form.quantity(class="form-control", id="edit_item_quantity", min="1", max="1000", required=True) }}
                             {% for error in item_form.quantity.errors %}
-                                <small class="text-danger">{{ error }}</small>
+                                <small class="text-danger">{{ error }}</smallસ
+
                             {% endfor %}
                         </div>
                         <div class="col-md-3 mb-3">
                             {{ item_form.price.label(class="form-label") }}
-                            {{ item_form.price(class="form-control", id="edit_item_price", step="0.01", min="0", required=True) }}
+                            {{ item_form.price(class="form-control", type="number", id="edit_item_price", step="0.01", min="0", required=True) }}
                             {% for error in item_form.price.errors %}
                                 <small class="text-danger">{{ error }}</small>
                             {% endfor %}
@@ -313,7 +315,7 @@
                     
                     <div class="mb-3">
                         {{ item_form.status.label(class="form-label") }}
-                        {{ item_form.status(class="form-select", id="edit_item_status") }}
+                        {{ item_form.status(class="form-select", id="edit_item_status", required=True) }}
                         {% for error in item_form.status.errors %}
                             <small class="text-danger">{{ error }}</small>
                         {% endfor %}
@@ -360,11 +362,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const forms = document.querySelectorAll('.validate-form');
     forms.forEach(form => {
         form.addEventListener('submit', function(event) {
-            if (!this.checkValidity()) {
+            const priceInput = form.querySelector('input[name="price"]');
+            const statusSelect = form.querySelector('select[name="status"]');
+            
+            // Clear previous validation states
+            form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            const errorAlert = form.querySelector('#form-error-alert');
+            if (errorAlert) errorAlert.classList.add('d-none');
+
+            let valid = true;
+            let errors = [];
+
+            // Validate price
+            if (!priceInput.value || parseFloat(priceInput.value) < 0) {
+                priceInput.classList.add('is-invalid');
+                errors.push('Price is required and must be non-negative.');
+                valid = false;
+            }
+
+            // Validate status
+            if (!statusSelect.value) {
+                statusSelect.classList.add('is-invalid');
+                errors.push('Status is required.');
+                valid = false;
+            }
+
+            if (!valid) {
                 event.preventDefault();
                 event.stopPropagation();
+                if (errorAlert) {
+                    errorAlert.classList.remove('d-none');
+                    errorAlert.textContent = errors.join(' ');
+                }
             }
-            this.classList.add('was-validated');
+            
+            form.classList.add('was-validated');
         });
     });
 });
@@ -388,7 +420,7 @@ function toggleItemStatus(itemId, currentStatus) {
         if (data.success) {
             setTimeout(() => {
                 location.reload();
-            }, 500); // Brief delay to show success
+            }, 500);
         } else {
             alert(data.error || '{{ t("shopping_status_error", default="Error updating item status") }}');
             button.innerHTML = originalText;
@@ -403,19 +435,29 @@ function toggleItemStatus(itemId, currentStatus) {
 }
 
 function editItem(itemId) {
-    // Use JSON-safe data to prevent JavaScript errors
     const items = {{ items | tojson | safe }};
     const item = items.find(i => i.id === itemId);
     if (item) {
+        // Ensure valid status
+        const validStatuses = ['to_buy', 'bought'];
+        const status = validStatuses.includes(item.status) ? item.status : 'to_buy';
+
         document.getElementById('edit_item_id').value = item.id;
         document.getElementById('edit_item_name').value = item.name;
         document.getElementById('edit_item_quantity').value = item.quantity;
-        document.getElementById('edit_item_price').value = item.price_raw;
+        document.getElementById('edit_item_price').value = item.price_raw.toFixed(2);
         document.getElementById('edit_item_unit').value = item.unit;
         document.getElementById('edit_item_category').value = item.category;
         document.getElementById('edit_item_store').value = item.store;
         document.getElementById('edit_item_frequency').value = item.frequency;
-        document.getElementById('edit_item_status').value = item.status;
+        document.getElementById('edit_item_status').value = status;
+
+        // Reset validation states
+        const form = document.getElementById('editItemForm');
+        form.classList.remove('was-validated');
+        form.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        const errorAlert = form.querySelector('#form-error-alert');
+        if (errorAlert) errorAlert.classList.add('d-none');
 
         const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
         modal.show();
@@ -431,4 +473,3 @@ function deleteItem(itemId, itemName) {
 }
 </script>
 {% endblock %}
-
