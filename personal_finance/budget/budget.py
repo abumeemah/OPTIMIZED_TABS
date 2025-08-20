@@ -257,7 +257,7 @@ class BudgetForm(FlaskForm):
     custom_categories = FieldList(
         FormField(CustomCategoryForm),
         min_entries=0,
-        max_entries=20,
+        max_entries=10,  # Updated to match template's JavaScript limit
         validators=[Optional()]
     )
     submit = SubmitField(trans('budget_submit', default='Submit'))
@@ -277,22 +277,44 @@ class BudgetForm(FlaskForm):
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators):
+            logger.debug(f"Form validation failed: {self.errors}", extra={'session_id': session.get('sid', 'unknown')})
             return False
         try:
             # Log custom_categories for debugging
-            logger.debug(f"Validating custom_categories: {[cat.__dict__ for cat in self.custom_categories]}",
+            logger.debug(f"Validating custom_categories: {[cat.form.data for cat in self.custom_categories.entries]}",
                          extra={'session_id': session.get('sid', 'unknown')})
-            # Validate unique custom category names
+            # Validate unique custom category names and total amount
             category_names = []
-            for cat in self.custom_categories:
-                if hasattr(cat, 'name') and cat.name.data:
-                    category_names.append(cat.name.data.lower())
-                else:
-                    logger.warning(f"Invalid category in custom_categories: {cat.__dict__}",
+            total_category_amount = 0.0
+            for cat in self.custom_categories.entries:
+                if not isinstance(cat.form, CustomCategoryForm):
+                    logger.warning(f"Invalid entry in custom_categories: {cat.__dict__}",
                                   extra={'session_id': session.get('sid', 'unknown')})
+                    self.custom_categories.errors.append(
+                        trans('budget_invalid_category', default='Invalid custom category format')
+                    )
+                    return False
+                if cat.name.data:
+                    category_names.append(cat.name.data.lower())
+                    total_category_amount += float(cat.amount.data or 0.0)
             if len(category_names) != len(set(category_names)):
                 self.custom_categories.errors.append(
                     trans('budget_duplicate_category_names', default='Custom category names must be unique')
+                )
+                return False
+            # Validate total expenses do not exceed income
+            total_expenses = sum([
+                float(self.housing.data or 0.0),
+                float(self.food.data or 0.0),
+                float(self.transport.data or 0.0),
+                float(self.dependents.data or 0),
+                float(self.miscellaneous.data or 0.0),
+                float(self.others.data or 0.0),
+                total_category_amount
+            ])
+            if total_expenses > float(self.income.data or 0.0):
+                self.custom_categories.errors.append(
+                    trans('budget_expenses_exceed_income', default='Total expenses cannot exceed income')
                 )
                 return False
             return True
@@ -347,7 +369,7 @@ def new():
             user_id=current_user.id,
             session_id=None,
         )
-        current_app.logger.debug(f"Fetched {len(activities)} recent activities for {'user ' + str(current_user.id) if current_user.is_authenticated else 'session ' + session.get('sid', 'unknown')}", extra={'session_id': session.get('sid', 'unknown')})
+        current_app.logger.debug(f"Fetched {len(activities)} recent activities for user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
     except Exception as e:
         current_app.logger.error(f"Failed to fetch recent activities: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
         flash(trans('budget_activities_load_error', default='Error loading recent activities.'), 'warning')
@@ -356,6 +378,54 @@ def new():
     try:
         filter_criteria = {} if utils.is_admin() else {'user_id': current_user.id}
         if request.method == 'POST':
+            # Validate CSRF token
+            try:
+                csrf.validate_csrf(form.csrf_token.data)
+            except CSRFError as e:
+                current_app.logger.error(f"CSRF validation failed: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
+                flash(trans('budget_csrf_error', default='Invalid CSRF token. Please try again.'), 'danger')
+                return render_template(
+                    'budget/new.html',
+                    form=form,
+                    budgets={},
+                    latest_budget={
+                        'id': None,
+                        'user_id': None,
+                        'session_id': session.get('sid', 'unknown'),
+                        'user_email': current_user.email,
+                        'income': format_currency(0.0),
+                        'income_raw': 0.0,
+                        'fixed_expenses': format_currency(0.0),
+                        'fixed_expenses_raw': 0.0,
+                        'variable_expenses': format_currency(0.0),
+                        'variable_expenses_raw': 0.0,
+                        'savings_goal': format_currency(0.0),
+                        'savings_goal_raw': 0.0,
+                        'surplus_deficit': 0.0,
+                        'surplus_deficit_formatted': format_currency(0.0),
+                        'housing': format_currency(0.0),
+                        'housing_raw': 0.0,
+                        'food': format_currency(0.0),
+                        'food_raw': 0.0,
+                        'transport': format_currency(0.0),
+                        'transport_raw': 0.0,
+                        'dependents': str(0),
+                        'dependents_raw': 0,
+                        'miscellaneous': format_currency(0.0),
+                        'miscellaneous_raw': 0.0,
+                        'others': format_currency(0.0),
+                        'others_raw': 0.0,
+                        'custom_categories': [],
+                        'created_at': 'N/A'
+                    },
+                    categories={},
+                    tips=[],
+                    insights=[],
+                    activities=activities,
+                    tool_title=trans('budget_title', default='Budget Planner'),
+                    active_tab=active_tab
+                ), 400
+
             # Log form data for debugging
             current_app.logger.debug(f"Form data: {request.form}", extra={'session_id': session.get('sid', 'unknown')})
             action = request.form.get('action')
@@ -377,21 +447,21 @@ def new():
                     current_app.logger.error(f"Failed to log budget creation: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
                     flash(trans('budget_log_error', default='Error logging budget creation. Continuing with submission.'), 'warning')
 
-                income = form.income.data
+                income = float(form.income.data or 0.0)
                 custom_categories = [
-                    {'name': cat.name.data, 'amount': cat.amount.data}
-                    for cat in form.custom_categories if cat.name.data and cat.amount.data
+                    {'name': cat.name.data, 'amount': float(cat.amount.data or 0.0)}
+                    for cat in form.custom_categories.entries if cat.name.data and cat.amount.data
                 ]
                 expenses = sum([
-                    form.housing.data,
-                    form.food.data,
-                    form.transport.data,
-                    float(form.dependents.data),
-                    form.miscellaneous.data,
-                    form.others.data,
+                    float(form.housing.data or 0.0),
+                    float(form.food.data or 0.0),
+                    float(form.transport.data or 0.0),
+                    float(form.dependents.data or 0),
+                    float(form.miscellaneous.data or 0.0),
+                    float(form.others.data or 0.0),
                     sum(cat['amount'] for cat in custom_categories)
                 ])
-                savings_goal = form.savings_goal.data
+                savings_goal = float(form.savings_goal.data or 0.0)
                 surplus_deficit = income - expenses
                 budget_id = ObjectId()
                 budget_data = {
@@ -404,29 +474,34 @@ def new():
                     'variable_expenses': 0.0,
                     'savings_goal': savings_goal,
                     'surplus_deficit': surplus_deficit,
-                    'housing': form.housing.data,
-                    'food': form.food.data,
-                    'transport': form.transport.data,
-                    'dependents': form.dependents.data,
-                    'miscellaneous': form.miscellaneous.data,
-                    'others': form.others.data,
+                    'housing': float(form.housing.data or 0.0),
+                    'food': float(form.food.data or 0.0),
+                    'transport': float(form.transport.data or 0.0),
+                    'dependents': int(form.dependents.data or 0),
+                    'miscellaneous': float(form.miscellaneous.data or 0.0),
+                    'others': float(form.others.data or 0.0),
                     'custom_categories': custom_categories,
                     'created_at': datetime.utcnow()
                 }
                 current_app.logger.debug(f"Saving budget data: {budget_data}", extra={'session_id': session['sid']})
                 try:
-                    created_budget_id = create_budget(db, budget_data)
-                    if current_user.is_authenticated and not utils.is_admin():
-                        if not deduct_ficore_credits(db, current_user.id, 1, 'create_budget', budget_id):
-                            db.budgets.delete_one({'_id': budget_id})  # Rollback on failure
-                            current_app.logger.error(f"Failed to deduct Ficore Credit for creating budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
-                            flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for creating budget.'), 'danger')
-                            return redirect(url_for('budget.new'))
+                    with db.client.start_session() as mongo_session:
+                        with mongo_session.start_transaction():
+                            created_budget_id = create_budget(db, budget_data)
+                            if current_user.is_authenticated and not utils.is_admin():
+                                if not deduct_ficore_credits(db, current_user.id, 1, 'create_budget', budget_id):
+                                    db.budgets.delete_one({'_id': budget_id}, session=mongo_session)  # Rollback on failure
+                                    current_app.logger.error(f"Failed to deduct Ficore Credit for creating budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
+                                    flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for creating budget.'), 'danger')
+                                    return redirect(url_for('budget.new'))
+                            mongo_session.commit_transaction()
+                    # Clear cache for get_budgets
+                    utils.cache.delete_memoized(utils.get_budgets)
                     current_app.logger.info(f"Budget {created_budget_id} saved successfully to MongoDB for session {session['sid']}", extra={'session_id': session['sid']})
                     flash(trans("budget_completed_success", default='Budget created successfully!'), "success")
                     return redirect(url_for('budget.dashboard'))
                 except Exception as e:
-                    current_app.logger.error(f"Failed to save budget {budget_id} to MongoDB for session {session['sid']}: {str(e)}", extra={'session_id': session['sid']})
+                    current_app.logger.error(f"Failed to save budget {budget_id} to MongoDB for session {session['sid']}: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
                     flash(trans("budget_storage_error", default='Error saving budget.'), "danger")
                     return render_template(
                         'budget/new.html',
@@ -482,29 +557,28 @@ def new():
                         flash(trans('budget_insufficient_credits', default='Insufficient Ficore Credits to delete a budget. Please purchase more credits.'), 'danger')
                         return redirect(url_for('dashboard.index'))
                 try:
-                    log_tool_usage(
-                        tool_name='budget',
-                        db=db,
-                        user_id=current_user.id,
-                        session_id=session.get('sid', 'unknown'),
-                        action='delete_budget'
-                    )
-                    result = db.budgets.delete_one({'_id': ObjectId(budget_id), **filter_criteria})
-                    if result.deleted_count > 0:
-                        if current_user.is_authenticated and not utils.is_admin():
-                            if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
-                                current_app.logger.error(f"Failed to deduct Ficore Credit for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
-                                flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.'), 'danger')
+                    with db.client.start_session() as mongo_session:
+                        with mongo_session.start_transaction():
+                            result = db.budgets.delete_one({'_id': ObjectId(budget_id), **filter_criteria}, session=mongo_session)
+                            if result.deleted_count > 0:
+                                if current_user.is_authenticated and not utils.is_admin():
+                                    if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
+                                        current_app.logger.error(f"Failed to deduct Ficore Credit for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
+                                        flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.'), 'danger')
+                                        return redirect(url_for('budget.manage'))
+                                mongo_session.commit_transaction()
+                            else:
+                                current_app.logger.warning(f"Budget ID {budget_id} not found for session {session['sid']}", extra={'session_id': session['sid']})
+                                flash(trans("budget_not_found", default='Budget not found.'), "danger")
                                 return redirect(url_for('budget.manage'))
-                        current_app.logger.info(f"Deleted budget ID {budget_id} for session {session['sid']}", extra={'session_id': session['sid']})
-                        flash(trans("budget_deleted_success", default='Budget deleted successfully!'), "success")
-                    else:
-                        current_app.logger.warning(f"Budget ID {budget_id} not found for session {session['sid']}", extra={'session_id': session['sid']})
-                        flash(trans("budget_not_found", default='Budget not found.'), "danger")
+                    utils.cache.delete_memoized(utils.get_budgets)
+                    current_app.logger.info(f"Deleted budget ID {budget_id} for session {session['sid']}", extra={'session_id': session['sid']})
+                    flash(trans("budget_deleted_success", default='Budget deleted successfully!'), "success")
+                    return redirect(url_for('budget.manage'))
                 except Exception as e:
-                    current_app.logger.error(f"Failed to delete budget ID {budget_id} for session {session['sid']}: {str(e)}", extra={'session_id': session['sid']})
+                    current_app.logger.error(f"Failed to delete budget ID {budget_id} for session {session['sid']}: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
                     flash(trans("budget_delete_failed", default='Error deleting budget.'), "danger")
-                return redirect(url_for('budget.manage'))
+                    return redirect(url_for('budget.manage'))
 
         budgets = list(db.budgets.find(filter_criteria).sort('created_at', -1).limit(10))
         current_app.logger.info(f"Read {len(budgets)} records from MongoDB budgets collection [session: {session['sid']}]", extra={'session_id': session['sid']})
@@ -583,7 +657,6 @@ def new():
             trans('budget_miscellaneous', default='Miscellaneous'): latest_budget.get('miscellaneous_raw', 0.0),
             trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0),
         }
-        # Add custom categories to the categories dict
         for cat in latest_budget.get('custom_categories', []):
             categories[cat['name']] = cat['amount']
         categories = {k: v for k, v in categories.items() if v > 0}
@@ -784,7 +857,6 @@ def dashboard():
             trans('budget_miscellaneous', default='Miscellaneous'): latest_budget.get('miscellaneous_raw', 0.0),
             trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0)
         }
-        # Add custom categories to the categories dict
         for cat in latest_budget.get('custom_categories', []):
             categories[cat['name']] = cat['amount']
         categories = {k: v for k, v in categories.items() if v > 0}
@@ -881,25 +953,23 @@ def manage():
                     return redirect(url_for('dashboard.index'))
             
             try:
-                log_tool_usage(
-                    tool_name='budget',
-                    db=db,
-                    user_id=current_user.id,
-                    session_id=session.get('sid', 'unknown'),
-                    action='delete_budget'
-                )
-                result = db.budgets.delete_one({'_id': ObjectId(budget_id), **filter_criteria})
-                if result.deleted_count > 0:
-                    if current_user.is_authenticated and not utils.is_admin():
-                        if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
-                            current_app.logger.error(f"Failed to deduct Ficore Credit for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
-                            flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.'), 'danger')
+                with db.client.start_session() as mongo_session:
+                    with mongo_session.start_transaction():
+                        result = db.budgets.delete_one({'_id': ObjectId(budget_id), **filter_criteria}, session=mongo_session)
+                        if result.deleted_count > 0:
+                            if current_user.is_authenticated and not utils.is_admin():
+                                if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
+                                    current_app.logger.error(f"Failed to deduct Ficore Credit for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
+                                    flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.'), 'danger')
+                                    return redirect(url_for('budget.manage'))
+                            mongo_session.commit_transaction()
+                        else:
+                            current_app.logger.warning(f"Budget ID {budget_id} not found for session {session['sid']}", extra={'session_id': session['sid']})
+                            flash(trans("budget_not_found", default='Budget not found.'), "danger")
                             return redirect(url_for('budget.manage'))
-                    current_app.logger.info(f"Deleted budget ID {budget_id} for session {session['sid']}", extra={'session_id': session['sid']})
-                    flash(trans("budget_deleted_success", default='Budget deleted successfully!'), "success")
-                else:
-                    current_app.logger.warning(f"Budget ID {budget_id} not found for session {session['sid']}", extra={'session_id': session['sid']})
-                    flash(trans("budget_not_found", default='Budget not found.'), "danger")
+                utils.cache.delete_memoized(utils.get_budgets)
+                current_app.logger.info(f"Deleted budget ID {budget_id} for session {session['sid']}", extra={'session_id': session['sid']})
+                flash(trans("budget_deleted_success", default='Budget deleted successfully!'), "success")
             except Exception as e:
                 current_app.logger.error(f"Failed to delete budget ID {budget_id} for session {session['sid']}: {str(e)}", extra={'session_id': session['sid']})
                 flash(trans("budget_delete_failed", default='Error deleting budget.'), "danger")
@@ -1079,10 +1149,8 @@ def export_pdf():
         p.save()
         buffer.seek(0)
         
-        # Deduct FC for PDF export (new rule: only delete and PDF export cost credits)
+        # Deduct FC for PDF export
         if current_user.is_authenticated and not utils.is_admin():
-            # Import deduct function from bill module since budget doesn't have it
-            from bill.bill import deduct_ficore_credits
             if not deduct_ficore_credits(db, current_user.id, 2, 'export_budget_pdf'):
                 flash(trans('budget_credit_deduction_failed', default='Failed to deduct credits for PDF export.'), 'danger')
                 return redirect(url_for('budget.manage'))
@@ -1122,32 +1190,34 @@ def delete_budget():
             return jsonify({'success': False, 'error': trans('budget_not_found', default='Budget not found.')}), 404
         
         # Delete the budget
-        result = db.budgets.delete_one({'_id': ObjectId(budget_id)})
+        with db.client.start_session() as mongo_session:
+            with mongo_session.start_transaction():
+                result = db.budgets.delete_one({'_id': ObjectId(budget_id)}, session=mongo_session)
+                
+                if result.deleted_count > 0:
+                    if current_user.is_authenticated and not utils.is_admin():
+                        if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
+                            logger.warning(f"Failed to deduct FC for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
+                            # Continue with deletion even if credit deduction fails
+                    mongo_session.commit_transaction()
+                
+                else:
+                    return jsonify({'success': False, 'error': trans('budget_delete_failed', default='Failed to delete budget.')}), 500
+            
+        utils.cache.delete_memoized(utils.get_budgets)
+        try:
+            log_tool_usage(
+                tool_name='budget',
+                db=db,
+                user_id=current_user.id,
+                session_id=session.get('sid', 'no-session'),
+                action='delete_budget'
+            )
+        except Exception as e:
+            logger.warning(f"Error logging delete activity: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
         
-        if result.deleted_count > 0:
-            # Deduct FC for delete operation (new rule: only delete and PDF export cost credits)
-            if current_user.is_authenticated and not utils.is_admin():
-                # Import deduct function from bill module since budget doesn't have it
-                from bill.bill import deduct_ficore_credits
-                if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
-                    logger.warning(f"Failed to deduct FC for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'unknown')})
-                    # Don't fail the operation if credit deduction fails - budget is already deleted
-            
-            try:
-                log_tool_usage(
-                    tool_name='budget',
-                    db=db,
-                    user_id=current_user.id,
-                    session_id=session.get('sid', 'no-session'),
-                    action='delete_budget'
-                )
-            except Exception as e:
-                logger.warning(f"Error logging delete activity: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
-            
-            return jsonify({'success': True, 'message': trans('budget_deleted', default='Budget deleted successfully!')})
-        else:
-            return jsonify({'success': False, 'error': trans('budget_delete_failed', default='Failed to delete budget.')}), 500
-            
+        return jsonify({'success': True, 'message': trans('budget_deleted', default='Budget deleted successfully!')})
+        
     except Exception as e:
         logger.error(f"Error deleting budget: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
         return jsonify({'success': False, 'error': trans('budget_delete_error', default='Error deleting budget.')}), 500
