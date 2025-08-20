@@ -877,7 +877,7 @@ def get_list_details():
 @custom_login_required
 @requires_role(['personal', 'admin'])
 def edit_list(list_id):
-    """Edit an existing shopping list."""
+    """Edit an existing shopping list and its items."""
     if 'sid' not in session:
         session['sid'] = str(uuid.uuid4())
         logger.debug(f"New session created with sid: {session['sid']}")
@@ -897,39 +897,246 @@ def edit_list(list_id):
         flash(trans('shopping_list_not_found', default='List not found.'), 'danger')
         return redirect(url_for('shopping.manage'))
 
+    # Fetch items for the list
+    list_items = list(db.shopping_items.find({'list_id': str(list_id)}))
+    items = [{
+        'id': str(item['_id']),
+        'name': item.get('name', ''),
+        'quantity': int(item.get('quantity', 1)),
+        'price_raw': float(item.get('price', 0.0)),
+        'unit': item.get('unit', 'piece'),
+        'category': item.get('category', 'other'),
+        'status': item.get('status', 'to_buy'),
+        'store': item.get('store', 'Unknown'),
+        'frequency': int(item.get('frequency', 7))
+    } for item in list_items]
+
+    # Calculate total cost for statistics
+    total_cost = sum(item['price_raw'] * item['quantity'] for item in items)
+
     list_form = ShoppingListForm(data={'name': shopping_list['name'], 'budget': shopping_list['budget']})
 
-    if request.method == 'POST' and list_form.validate_on_submit():
-        try:
-            updated_data = {
-                'name': list_form.name.data.strip(),
-                'budget': float(list_form.budget.data),
-                'updated_at': datetime.utcnow()
-            }
-            result = db.shopping_lists.update_one(
-                {'_id': ObjectId(list_id), **filter_criteria},
-                {'$set': updated_data}
-            )
-            if result.modified_count > 0:
-                flash(trans('shopping_list_updated', default='Shopping list updated successfully!'), 'success')
-                # Clear cache if applicable
-                get_shopping_lists.cache_clear()
-                return redirect(url_for('shopping.manage'))
-            else:
-                flash(trans('shopping_update_failed', default='Failed to update list.'), 'danger')
-        except errors.WriteError as e:
-            logger.error(f"Failed to update list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'no-session-id')})
-            flash(trans('shopping_update_error', default='Error updating list due to validation failure.'), 'danger')
-        except Exception as e:
-            logger.error(f"Unexpected error updating list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'no-session-id')})
-            flash(trans('shopping_update_error', default=f'Error updating list: {str(e)}'), 'danger')
+    if request.method == 'POST':
+        action = request.form.get('action')
+        session_id = session.get('sid', str(uuid.uuid4()))
+
+        if action == 'update_list' and list_form.validate_on_submit():
+            try:
+                updated_data = {
+                    'name': list_form.name.data.strip(),
+                    'budget': float(list_form.budget.data),
+                    'updated_at': datetime.utcnow()
+                }
+                result = db.shopping_lists.update_one(
+                    {'_id': ObjectId(list_id), **filter_criteria},
+                    {'$set': updated_data}
+                )
+                if result.modified_count > 0:
+                    flash(trans('shopping_list_updated', default='Shopping list updated successfully!'), 'success')
+                    get_shopping_lists.cache_clear()
+                    return redirect(url_for('shopping.edit_list', list_id=list_id))
+                else:
+                    flash(trans('shopping_update_failed', default='Failed to update list.'), 'danger')
+            except errors.WriteError as e:
+                logger.error(f"Failed to update list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                flash(trans('shopping_update_error', default='Error updating list due to validation failure.'), 'danger')
+            except Exception as e:
+                logger.error(f"Unexpected error updating list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                flash(trans('shopping_update_error', default=f'Error updating list: {str(e)}'), 'danger')
+
+        elif action == 'add_item':
+            item_form = ShoppingItemsForm()
+            if item_form.validate_on_submit():
+                try:
+                    with db.client.start_session() as mongo_session:
+                        with mongo_session.start_transaction():
+                            new_item_data = {
+                                '_id': ObjectId(),
+                                'list_id': str(list_id),
+                                'user_id': str(current_user.id),
+                                'name': item_form.name.data.strip(),
+                                'quantity': int(item_form.quantity.data),
+                                'price': float(item_form.price.data),
+                                'unit': item_form.unit.data,
+                                'category': item_form.category.data or auto_categorize_item(item_form.name.data),
+                                'status': item_form.status.data or 'to_buy',
+                                'store': item_form.store.data.strip(),
+                                'frequency': int(item_form.frequency.data),
+                                'created_at': datetime.utcnow(),
+                                'updated_at': datetime.utcnow()
+                            }
+                            # Check for duplicate item names
+                            existing_items = db.shopping_items.find({'list_id': str(list_id), 'name': new_item_data['name'].lower()}, session=mongo_session)
+                            if existing_items.count() > 0:
+                                flash(trans('shopping_duplicate_item_name', default='Item name already exists in this list.'), 'danger')
+                                return redirect(url_for('shopping.edit_list', list_id=list_id))
+                            
+                            created_item_id = create_shopping_item(db, new_item_data, mongo_session)
+                            # Update total_spent
+                            list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
+                            total_spent = sum(item['price'] * item['quantity'] for item in list_items)
+                            db.shopping_lists.update_one(
+                                {'_id': ObjectId(list_id)},
+                                {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
+                                session=mongo_session
+                            )
+                            flash(trans('shopping_item_added', default='Item added successfully!'), 'success')
+                            if total_spent > shopping_list['budget']:
+                                flash(trans('shopping_over_budget', default='Warning: Total spent exceeds budget by ') + format_currency(total_spent - shopping_list['budget']) + '.', 'warning')
+                            get_shopping_lists.cache_clear()
+                            return redirect(url_for('shopping.edit_list', list_id=list_id))
+                except errors.WriteError as e:
+                    logger.error(f"Failed to add item to list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                    flash(trans('shopping_item_error', default='Error adding item due to validation failure.'), 'danger')
+                except Exception as e:
+                    logger.error(f"Unexpected error adding item to list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                    flash(trans('shopping_item_error', default=f'Error adding item: {str(e)}'), 'danger')
+
+        elif action == 'update_item':
+            item_id = request.form.get('item_id')
+            if not ObjectId.is_valid(item_id):
+                flash(trans('shopping_invalid_item_id', default='Invalid item ID.'), 'danger')
+                return redirect(url_for('shopping.edit_list', list_id=list_id))
+            item_form = ShoppingItemsForm()
+            if item_form.validate_on_submit():
+                try:
+                    with db.client.start_session() as mongo_session:
+                        with mongo_session.start_transaction():
+                            updated_item_data = {
+                                'name': item_form.name.data.strip(),
+                                'quantity': int(item_form.quantity.data),
+                                'price': float(item_form.price.data),
+                                'unit': item_form.unit.data,
+                                'category': item_form.category.data or auto_categorize_item(item_form.name.data),
+                                'status': item_form.status.data or 'to_buy',
+                                'store': item_form.store.data.strip(),
+                                'frequency': int(item_form.frequency.data),
+                                'updated_at': datetime.utcnow()
+                            }
+                            result = db.shopping_items.update_one(
+                                {'_id': ObjectId(item_id), 'list_id': str(list_id), **filter_criteria},
+                                {'$set': updated_item_data},
+                                session=mongo_session
+                            )
+                            if result.modified_count > 0:
+                                # Update total_spent
+                                list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
+                                total_spent = sum(item['price'] * item['quantity'] for item in list_items)
+                                db.shopping_lists.update_one(
+                                    {'_id': ObjectId(list_id)},
+                                    {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
+                                    session=mongo_session
+                                )
+                                flash(trans('shopping_item_updated', default='Item updated successfully!'), 'success')
+                                if total_spent > shopping_list['budget']:
+                                    flash(trans('shopping_over_budget', default='Warning: Total spent exceeds budget by ') + format_currency(total_spent - shopping_list['budget']) + '.', 'warning')
+                                get_shopping_lists.cache_clear()
+                                return redirect(url_for('shopping.edit_list', list_id=list_id))
+                            else:
+                                flash(trans('shopping_update_item_failed', default='Failed to update item.'), 'danger')
+                except errors.WriteError as e:
+                    logger.error(f"Failed to update item {item_id} in list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                    flash(trans('shopping_item_error', default='Error updating item due to validation failure.'), 'danger')
+                except Exception as e:
+                    logger.error(f"Unexpected error updating item {item_id} in list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                    flash(trans('shopping_item_error', default=f'Error updating item: {str(e)}'), 'danger')
+
+        elif action == 'delete_item':
+            item_id = request.form.get('item_id')
+            if not ObjectId.is_valid(item_id):
+                flash(trans('shopping_invalid_item_id', default='Invalid item ID.'), 'danger')
+                return redirect(url_for('shopping.edit_list', list_id=list_id))
+            try:
+                with db.client.start_session() as mongo_session:
+                    with mongo_session.start_transaction():
+                        result = db.shopping_items.delete_one(
+                            {'_id': ObjectId(item_id), 'list_id': str(list_id), **filter_criteria},
+                            session=mongo_session
+                        )
+                        if result.deleted_count > 0:
+                            # Update total_spent
+                            list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
+                            total_spent = sum(item['price'] * item['quantity'] for item in list_items)
+                            db.shopping_lists.update_one(
+                                {'_id': ObjectId(list_id)},
+                                {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
+                                session=mongo_session
+                            )
+                            flash(trans('shopping_item_deleted', default='Item deleted successfully!'), 'success')
+                            get_shopping_lists.cache_clear()
+                            return redirect(url_for('shopping.edit_list', list_id=list_id))
+                        else:
+                            flash(trans('shopping_delete_item_failed', default='Failed to delete item.'), 'danger')
+            except errors.WriteError as e:
+                logger.error(f"Failed to delete item {item_id} from list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                flash(trans('shopping_item_error', default='Error deleting item due to validation failure.'), 'danger')
+            except Exception as e:
+                logger.error(f"Unexpected error deleting item {item_id} from list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                flash(trans('shopping_item_error', default=f'Error deleting item: {str(e)}'), 'danger')
 
     return render_template(
         'shopping/edit_list.html',
         list_form=list_form,
         list_id=list_id,
+        shopping_list=shopping_list,
+        items=items,
+        total_cost=total_cost,
         tool_title=trans('shopping_edit_list', default='Edit Shopping List')
     )
+
+@shopping_bp.route('/toggle_item_status', methods=['POST'])
+@custom_login_required
+@requires_role(['personal', 'admin'])
+def toggle_item_status():
+    """Toggle the status of a shopping item between 'to_buy' and 'bought'."""
+    if 'sid' not in session:
+        session['sid'] = str(uuid.uuid4())
+        logger.debug(f"New session created with sid: {session['sid']}")
+    session.permanent = True
+    session.modified = True
+
+    db = get_mongo_db()
+    data = request.get_json()
+    item_id = data.get('item_id')
+    session_id = session.get('sid', 'no-session-id')
+
+    if not ObjectId.is_valid(item_id):
+        return jsonify({'success': False, 'error': trans('shopping_invalid_item_id', default='Invalid item ID.')}), 400
+
+    filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
+    item = db.shopping_items.find_one({'_id': ObjectId(item_id), **filter_criteria})
+
+    if not item:
+        return jsonify({'success': False, 'error': trans('shopping_item_not_found', default='Item not found.')}), 404
+
+    new_status = 'bought' if item.get('status') == 'to_buy' else 'to_buy'
+
+    try:
+        with db.client.start_session() as mongo_session:
+            with mongo_session.start_transaction():
+                result = db.shopping_items.update_one(
+                    {'_id': ObjectId(item_id), **filter_criteria},
+                    {'$set': {'status': new_status, 'updated_at': datetime.utcnow()}},
+                    session=mongo_session
+                )
+                if result.modified_count > 0:
+                    # Update total_spent for the list
+                    list_items = list(db.shopping_items.find({'list_id': item['list_id']}, session=mongo_session))
+                    total_spent = sum(item['price'] * item['quantity'] for item in list_items)
+                    db.shopping_lists.update_one(
+                        {'_id': ObjectId(item['list_id'])},
+                        {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
+                        session=mongo_session
+                    )
+                    return jsonify({'success': True, 'message': trans('shopping_item_status_updated', default='Item status updated successfully!')})
+                else:
+                    return jsonify({'success': False, 'error': trans('shopping_update_item_failed', default='Failed to update item status.')}), 500
+    except errors.WriteError as e:
+        logger.error(f"Failed to toggle status for item {item_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+        return jsonify({'success': False, 'error': trans('shopping_item_error', default='Error updating item status due to validation failure.')}), 500
+    except Exception as e:
+        logger.error(f"Unexpected error toggling status for item {item_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+        return jsonify({'success': False, 'error': trans('shopping_item_error', default=f'Error updating item status: {str(e)}')}), 500
 
 @shopping_bp.route('/delete_list', methods=['POST'])
 @custom_login_required
