@@ -1219,7 +1219,3 @@ def delete_budget():
         logger.error(f"Error deleting budget: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
         return jsonify({'success': False, 'error': trans('budget_delete_error', default='Error deleting budget.')}), 500
 
-@app.errorhandler(CSRFError)
-def handle_csrf_error(e):
-    flash(trans('budget_csrf_error', default='Invalid CSRF token. Please try again.'), 'danger')
-    return redirect(url_for('budget.new')), 400
