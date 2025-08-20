@@ -278,14 +278,31 @@ class BudgetForm(FlaskForm):
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators):
             return False
-        # Validate unique custom category names
-        category_names = [cat.name.data.lower() for cat in self.custom_categories if cat.name.data]
-        if len(category_names) != len(set(category_names)):
+        try:
+            # Log custom_categories for debugging
+            logger.debug(f"Validating custom_categories: {[cat.__dict__ for cat in self.custom_categories]}",
+                         extra={'session_id': session.get('sid', 'unknown')})
+            # Validate unique custom category names
+            category_names = []
+            for cat in self.custom_categories:
+                if hasattr(cat, 'name') and cat.name.data:
+                    category_names.append(cat.name.data.lower())
+                else:
+                    logger.warning(f"Invalid category in custom_categories: {cat.__dict__}",
+                                  extra={'session_id': session.get('sid', 'unknown')})
+            if len(category_names) != len(set(category_names)):
+                self.custom_categories.errors.append(
+                    trans('budget_duplicate_category_names', default='Custom category names must be unique')
+                )
+                return False
+            return True
+        except Exception as e:
+            logger.error(f"Error in BudgetForm.validate: {str(e)}",
+                         exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
             self.custom_categories.errors.append(
-                trans('budget_duplicate_category_names', default='Custom category names must be unique')
+                trans('budget_validation_error', default='Error validating custom categories.')
             )
             return False
-        return True
 
 @budget_bp.route('/', methods=['GET'])
 @custom_login_required
@@ -339,6 +356,8 @@ def new():
     try:
         filter_criteria = {} if utils.is_admin() else {'user_id': current_user.id}
         if request.method == 'POST':
+            # Log form data for debugging
+            current_app.logger.debug(f"Form data: {request.form}", extra={'session_id': session.get('sid', 'unknown')})
             action = request.form.get('action')
             if action == 'create_budget' and form.validate_on_submit():
                 if current_user.is_authenticated and not utils.is_admin():
@@ -590,8 +609,7 @@ def new():
                     insights.append(trans("budget_insight_high_housing", default='Housing costs exceed 40% of income. Consider cost-saving measures.'))
         except (ValueError, TypeError) as e:
             current_app.logger.warning(f"Error parsing budget amounts for insights: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
-        current_app.logger.debug(f"Latest budget: {latest_budget}", extra={'session_id': session.get('sid', 'unknown')})
-        current_app.logger.debug(f"Categories: {categories}", extra={'session_id': session.get('sid', 'unknown')})
+        current_app.logger.debug(f"Rendering template with context: form={form}, budgets={budgets_dict}, latest_budget={latest_budget}, categories={categories}, active_tab={active_tab}", extra={'session_id': session.get('sid', 'unknown')})
         return render_template(
             'budget/new.html',
             form=form,
