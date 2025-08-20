@@ -87,7 +87,6 @@
     padding: 1rem; /* Reduced from 1.5rem to 1rem */
     position: relative;
     overflow: hidden; /* For any background patterns if added */
-    /* opay-green-bg - You need to define this in your global CSS */
     background-color: #00b050; 
 }
 
