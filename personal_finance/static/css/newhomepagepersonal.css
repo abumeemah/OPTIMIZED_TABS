@@ -547,3 +547,68 @@
 .breadcrumb-fix {
     overflow-x: hidden;
 }
+/* Tool Header Styling */
+.tool-header {
+    background: linear-gradient(135deg, #1E3A8A 0%, #D4AF37 100%);
+    color: white;
+    padding: 1rem 0;
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Breadcrumb Styling */
+.tool-header .breadcrumb {
+    background-color: transparent;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0;
+    font-size: 0.95rem;
+    border-bottom: none;
+}
+
+.tool-header .breadcrumb-item {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.tool-header .breadcrumb-item a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+}
+
+.tool-header .breadcrumb-item a:hover {
+    color: #FFFFFF;
+    text-decoration: underline;
+}
+
+.tool-header .breadcrumb-item.active {
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+/* Button Group inside Header */
+.tool-header .btn-outline-primary {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.85);
+    transition: all 0.3s ease;
+}
+
+.tool-header .btn-outline-primary:hover,
+.tool-header .btn-outline-primary.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.6);
+    color: #FFFFFF;
+}
+/* Responsive fix */
+@media (max-width: 768px) {
+    .tool-header .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .tool-header .btn-sm {
+        margin: 0.1rem;
+    }
+}
+
+/* Breadcrumb overflow fix */
+.breadcrumb-fix {
+    overflow-x: hidden;
+}
