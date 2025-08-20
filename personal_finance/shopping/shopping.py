@@ -8,7 +8,7 @@ from datetime import datetime
 from helpers.branding_helpers import draw_ficore_pdf_header
 from bson import ObjectId
 from pymongo import errors
-from utils import get_mongo_db, requires_role, logger, check_ficore_credit_balance, is_admin, format_date, format_currency
+from utils import get_mongo_db, requires_role, logger, clean_ficore_credit_balance, is_admin, format_date, format_currency
 from translations import trans
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -609,7 +609,7 @@ def new():
                                     'updated_at': datetime.utcnow()
                                 }
                                 logger.debug(f"Creating shopping item: {new_item_data}", extra={'session_id': session_id})
-                                created_item_id = create_shopping_item(db, new_item_data, mongo_session)
+                                created_item_id = create_shopping_item(db, new_item_data, mongo_session=mongo_session)
                                 added += 1
                                 existing_names.add(item_data['name'].lower())
                             except ValueError as e:
@@ -1010,7 +1010,7 @@ def edit_list(list_id):
                                 flash(trans('shopping_duplicate_item_name', default='Item name already exists in this list.'), 'danger')
                                 return redirect(url_for('shopping.edit_list', list_id=list_id))
                             
-                            created_item_id = create_shopping_item(db, new_item_data, mongo_session)
+                            created_item_id = create_shopping_item(db, new_item_data, mongo_session=mongo_session)
                             list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
                             total_spent = sum(item['price'] * item['quantity'] for item in list_items)
                             db.shopping_lists.update_one(
