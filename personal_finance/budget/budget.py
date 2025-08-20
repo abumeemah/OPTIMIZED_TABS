@@ -274,57 +274,57 @@ class BudgetForm(FlaskForm):
         self.others.label.text = trans('budget_others', lang) or 'Others'
         self.savings_goal.label.text = trans('budget_savings_goal', lang) or 'Savings Goal'
         self.submit.label.text = trans('budget_submit', lang) or 'Submit'
-
+        
     def validate(self, extra_validators=None):
-        if not super().validate(extra_validators):
-            logger.debug(f"Form validation failed: {self.errors}", extra={'session_id': session.get('sid', 'unknown')})
-            return False
-        try:
-            # Log custom_categories for debugging
-            logger.debug(f"Validating custom_categories: {[cat.form.data for cat in self.custom_categories.entries]}",
-                         extra={'session_id': session.get('sid', 'unknown')})
-            # Validate unique custom category names and total amount
-            category_names = []
-            total_category_amount = 0.0
-            for cat in self.custom_categories.entries:
-                if not isinstance(cat.form, CustomCategoryForm):
-                    logger.warning(f"Invalid entry in custom_categories: {cat.__dict__}",
-                                  extra={'session_id': session.get('sid', 'unknown')})
-                    self.custom_categories.errors.append(
-                        trans('budget_invalid_category', default='Invalid custom category format')
-                    )
-                    return False
-                if cat.name.data:
-                    category_names.append(cat.name.data.lower())
-                    total_category_amount += float(cat.amount.data or 0.0)
-            if len(category_names) != len(set(category_names)):
+    if not super().validate(extra_validators):
+        logger.debug(f"Form validation failed: {self.errors}", extra={'session_id': session.get('sid', 'unknown')})
+        return False
+    try:
+        # Log custom_categories for debugging
+        logger.debug(f"Validating custom_categories: {[cat.form.data for cat in self.custom_categories.entries if isinstance(cat.form, CustomCategoryForm)]}",
+                     extra={'session_id': session.get('sid', 'unknown')})
+        # Validate unique custom category names and total amount
+        category_names = []
+        total_category_amount = 0.0
+        for cat in self.custom_categories.entries:
+            if not isinstance(cat.form, CustomCategoryForm):
+                logger.warning(f"Invalid entry in custom_categories: {cat.__dict__}",
+                              extra={'session_id': session.get('sid', 'unknown')})
                 self.custom_categories.errors.append(
-                    trans('budget_duplicate_category_names', default='Custom category names must be unique')
+                    trans('budget_invalid_category', default='Invalid custom category format')
                 )
                 return False
-            # Validate total expenses do not exceed income
-            total_expenses = sum([
-                float(self.housing.data or 0.0),
-                float(self.food.data or 0.0),
-                float(self.transport.data or 0.0),
-                float(self.dependents.data or 0),
-                float(self.miscellaneous.data or 0.0),
-                float(self.others.data or 0.0),
-                total_category_amount
-            ])
-            if total_expenses > float(self.income.data or 0.0):
-                self.custom_categories.errors.append(
-                    trans('budget_expenses_exceed_income', default='Total expenses cannot exceed income')
-                )
-                return False
-            return True
-        except Exception as e:
-            logger.error(f"Error in BudgetForm.validate: {str(e)}",
-                         exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
+            if cat.form.name.data:  # Check if name exists and is valid
+                category_names.append(cat.form.name.data.lower())
+                total_category_amount += float(cat.form.amount.data or 0.0)
+        if len(category_names) != len(set(category_names)):
             self.custom_categories.errors.append(
-                trans('budget_validation_error', default='Error validating custom categories.')
+                trans('budget_duplicate_category_names', default='Custom category names must be unique')
             )
             return False
+        # Validate total expenses do not exceed income
+        total_expenses = sum([
+            float(self.housing.data or 0.0),
+            float(self.food.data or 0.0),
+            float(self.transport.data or 0.0),
+            float(self.dependents.data or 0),
+            float(self.miscellaneous.data or 0.0),
+            float(self.others.data or 0.0),
+            total_category_amount
+        ])
+        if total_expenses > float(self.income.data or 0.0):
+            self.custom_categories.errors.append(
+                trans('budget_expenses_exceed_income', default='Total expenses cannot exceed income')
+            )
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"Error in BudgetForm.validate: {str(e)}",
+                     exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
+        self.custom_categories.errors.append(
+            trans('budget_validation_error', default='Error validating custom categories.')
+        )
+        return False
 
 @budget_bp.route('/', methods=['GET'])
 @custom_login_required
