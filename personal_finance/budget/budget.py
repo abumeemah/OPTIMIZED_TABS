@@ -378,6 +378,9 @@ def new():
     try:
         filter_criteria = {} if utils.is_admin() else {'user_id': current_user.id}
         if request.method == 'POST':
+            try:
+                csrf.validate_csrf(request.form.get('csrf_token'))
+            except CSRFError as e:
                 current_app.logger.error(f"CSRF validation failed: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
                 flash(trans('budget_csrf_error', default='Invalid CSRF token. Please try again.'), 'danger')
                 return render_template(
@@ -422,7 +425,6 @@ def new():
                     active_tab=active_tab
                 ), 400
 
-            # Log form data for debugging
             current_app.logger.debug(f"Form data: {request.form}", extra={'session_id': session.get('sid', 'unknown')})
             action = request.form.get('action')
             if action == 'create_budget' and form.validate_on_submit():
@@ -491,7 +493,6 @@ def new():
                                     flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for creating budget.'), 'danger')
                                     return redirect(url_for('budget.new'))
                             mongo_session.commit_transaction()
-                    # Clear cache for get_budgets
                     utils.cache.delete_memoized(utils.get_budgets)
                     current_app.logger.info(f"Budget {created_budget_id} saved successfully to MongoDB for session {session['sid']}", extra={'session_id': session['sid']})
                     flash(trans("budget_completed_success", default='Budget created successfully!'), "success")
@@ -735,7 +736,7 @@ def new():
             tool_title=trans('budget_title', default='Budget Planner'),
             active_tab=active_tab
         ), 500
-
+        
 @budget_bp.route('/dashboard', methods=['GET'])
 @custom_login_required
 @utils.requires_role(['personal', 'admin'])
