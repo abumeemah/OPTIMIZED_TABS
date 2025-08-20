@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, current_app, session, request
 from flask_login import current_user, login_required
 from datetime import datetime, date
 from models import get_budgets, get_bills
-from utils import get_mongo_db, trans, requires_role, logger, is_admin
+from utils import get_mongo_db, trans, requires_role, logger, is_admin, get_recent_activities
 from bson import ObjectId
 
 summaries_bp = Blueprint('summaries', __name__, url_prefix='/summaries')
@@ -26,149 +26,11 @@ def parse_currency(value):
         return 0.0
 
 # --- HELPER FUNCTION ---
-def get_recent_activities(user_id=None, is_admin_user=False, db=None):
-    if db is None:
-        db = get_mongo_db()
-    query = {} if is_admin_user else {'user_id': str(user_id)}
-    activities = []
-
-    # Log the user_id and is_admin_user for debugging
-    logger.info(f"Fetching recent activities for user_id={user_id}, is_admin_user={is_admin_user}, query={query}", 
-                extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
-
-    # Define required fields for each activity type
-    activity_configs = {
-        'bills': {
-            'collection': 'bills',
-            'required_fields': ['created_at', 'bill_name'],
-            'type': 'bill',
-            'icon': 'bi-receipt',
-            'description_key': 'recent_activity_bill_added',
-            'default_description': 'Added bill: {name}',
-            'details': lambda x: {
-                'amount': x.get('amount', 0),
-                'due_date': x.get('due_date', 'N/A'),
-                'status': x.get('status', 'Unknown')
-            }
-        },
-        'budgets': {
-            'collection': 'budgets',
-            'required_fields': ['created_at', 'income'],
-            'type': 'budget',
-            'icon': 'bi-cash-coin',
-            'description_key': 'recent_activity_budget_created',
-            'default_description': 'Created budget with income: {amount}',
-            'details': lambda x: {
-                'income': x.get('income', 0),
-                'surplus_deficit': x.get('surplus_deficit', 0)
-            }
-        },
-        'shopping_lists': {
-            'collection': 'shopping_lists',
-            'required_fields': ['created_at', 'name'],
-            'type': 'shopping',  # Changed to 'shopping' to match JS filter
-            'icon': 'bi-cart',
-            'description_key': 'recent_activity_shopping_list_created',
-            'default_description': 'Created shopping list: {name}',
-            'details': lambda x: {
-                'budget': x.get('budget', 0),
-                'total_spent': x.get('total_spent', 0)
-            }
-        },
-        'shopping_items': {
-            'collection': 'shopping_items',
-            'required_fields': ['updated_at', 'name', 'status'],
-            'type': 'shopping',  # Changed to 'shopping' to match JS filter
-            'icon': 'bi-check-circle',
-            'description_key': 'recent_activity_shopping_item_bought',
-            'default_description': 'Bought item: {name}',
-            'details': lambda x: {
-                'quantity': x.get('quantity', 1),
-                'price': x.get('price', 0),
-                'store': x.get('store', 'Unknown')
-            },
-            'filter': lambda x: x.get('status') == 'bought'
-        },
-        'ficore_credit_transactions': {
-            'collection': 'ficore_credit_transactions',
-            'required_fields': ['timestamp', 'amount', 'action'],
-            'type': 'credits',  # Changed to 'credits' to match JS filter
-            'icon': 'bi-wallet2',
-            'description_key': 'recent_activity_ficore_credit',
-            'default_description': '{action}: {amount} credits',
-            'details': lambda x: {
-                'amount': x.get('amount', 0),
-                'action': x.get('action', 'Unknown')
-            }
-        }
-    }
-
-    for config in activity_configs.values():
-        try:
-            # Use aggregation pipeline for optimized querying
-            pipeline = [
-                {'$match': query},
-                {'$sort': {config.get('sort_field', 'created_at'): -1}},
-                {'$limit': 2}  # Fetch only 2 records per collection
-            ]
-            cursor = db[config['collection']].aggregate(pipeline)
-            for record in cursor:
-                # Validate required fields
-                if any(record.get(field) is None for field in config['required_fields']):
-                    logger.warning(
-                        f"Skipping invalid {config['collection']} record: {record.get('_id', 'unknown')}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr}
-                    )
-                    continue
-                # Apply additional filter if specified
-                if 'filter' in config and not config['filter'](record):
-                    continue
-                # Validate timestamp format
-                try:
-                    timestamp = record.get(config.get('sort_field', 'created_at'), datetime.utcnow())
-                    if isinstance(timestamp, str):
-                        timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    activity_timestamp = timestamp.isoformat()
-                except ValueError as ve:
-                    logger.warning(
-                        f"Invalid timestamp in {config['collection']} record: {record.get('_id', 'unknown')}, error: {str(ve)}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr}
-                    )
-                    continue
-                # Construct activity object
-                activity = {
-                    'type': config['type'],
-                    'description_key': config['description_key'],
-                    'description': trans(
-                        config['description_key'],
-                        default=config['default_description'].format(**{
-                            'name': record.get('name', 'Unknown'),
-                            'amount': abs(record.get('amount', record.get('income', 0))),
-                            'action': record.get('action', 'Transaction')
-                        }),
-                        module=config['collection']
-                    ),
-                    'timestamp': activity_timestamp,
-                    'details': config['details'](record),
-                    'icon': config['icon']
-                }
-                activities.append(activity)
-        except Exception as e:
-            logger.error(
-                f"Error processing {config['collection']} for recent activities: {str(e)}",
-                extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr}
-            )
-            continue
-
-    activities.sort(key=lambda x: x['timestamp'], reverse=True)
-    return activities[:10]
-
-# --- HELPER FUNCTION ---
 def _get_recent_activities_data(user_id=None, is_admin_user=False, db=None):
     """Fetch recent activities across all personal finance tools for a user."""
     if db is None:
         db = get_mongo_db()
-    return get_recent_activities(user_id, is_admin_user, db)
+    return get_recent_activities(user_id=user_id, is_admin_user=is_admin_user, db=db, session_id=session.get('sid', 'no-session-id'), limit=2)
 
 # --- HELPER FUNCTION FOR NOTIFICATIONS ---
 def _get_notifications_data(user_id, is_admin_user, db):
