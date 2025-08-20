@@ -12,15 +12,15 @@ EMAIL_CONFIG = {
     "budget": {
         "subject_key": "budget_plan_summary",
         "template": {
-            "mailersend": "budget_email.html",
-            "gmail": "budget_email_gmail.html"
+            "mailersend": "budget/budget_email.html",
+            "gmail": "budget/budget_email_gmail.html"
         }
     },
     "bill_reminder": {
         "subject_key": "bill_payment_reminder",
         "template": {
-            "mailersend": "bill_reminder.html",
-            "gmail": "bill_reminder_gmail.html"
+            "mailersend": "bill/bill_reminder.html",
+            "gmail": "bill/bill_reminder_gmail.html"
         }
     }
 }
@@ -122,15 +122,11 @@ def send_email(
         try:
             # Select template based on provider
             template_name = config["template"].get(provider, config["template"].get('mailersend'))
+            # Ensure template_name has .html extension
             if not template_name.endswith('.html'):
                 template_name += '.html'
-            # Assume template is in templates/ or templates/bill/ for bill_reminder
+            # Construct full template path relative to app's template folder
             template_path = os.path.join(current_app.template_folder, template_name)
-            if template_key == 'bill_reminder':
-                # Check bill blueprint folder
-                bill_template_path = os.path.join(current_app.template_folder, 'bill', template_name)
-                if os.path.exists(bill_template_path):
-                    template_path = bill_template_path
             if not os.path.exists(template_path):
                 raise ValueError(f"Template {template_name} for provider {provider} not found at {template_path}")
 
