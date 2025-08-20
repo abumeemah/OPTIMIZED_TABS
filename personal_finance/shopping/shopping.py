@@ -8,7 +8,7 @@ from datetime import datetime
 from helpers.branding_helpers import draw_ficore_pdf_header
 from bson import ObjectId
 from pymongo import errors
-from utils import get_mongo_db, requires_role, logger, clean_currency, check_ficore_credit_balance, is_admin, format_date, format_currency
+from utils import get_mongo_db, requires_role, logger, clean_ficore_credit_balance, is_admin, format_date, format_currency
 from translations import trans
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -49,8 +49,8 @@ def auto_categorize_item(item_name):
 def clean_currency(value):
     """Clean and convert currency input to float, handling empty or invalid inputs."""
     if value is None or value == '':
-        logger.debug("clean_currency received empty or None input, returning 0.0")
-        return 0.0
+        logger.debug("clean_currency received empty or None input, returning None")
+        return None
     try:
         cleaned_value = str(value).replace(',', '').replace(' ', '')
         return round(float(cleaned_value), 2)
@@ -200,9 +200,9 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
                 
                 if owns_session:
                     try:
-                        session_to_use.abort_transaction()
-                    except Exception as abort_error:
-                        logger.error(f"Failed to abort transaction: {abort_error}", extra={'session_id': session_id, 'user_id': user_id})
+                        session_to_use.end_session()
+                    except Exception as end_error:
+                        logger.error(f"Failed to end session: {end_error}", extra={'session_id': session_id, 'user_id': user_id})
                 return False
                 
             finally:
@@ -321,6 +321,7 @@ class ShoppingItemsForm(FlaskForm):
             ('to_buy', trans('shopping_status_to_buy', default='To Buy')),
             ('bought', trans('shopping_status_bought', default='Bought'))
         ],
+        default='to_buy',
         validators=[DataRequired(message=trans('shopping_status_required', default='Status is required'))]
     )
     frequency = IntegerField(
@@ -334,6 +335,7 @@ class ShoppingItemsForm(FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        logger.debug(f"Initializing ShoppingItemsForm with kwargs: {kwargs}", extra={'session_id': session.get('sid', 'no-session-id')})
         lang = session.get('lang', 'en')
         self.name.label.text = trans('shopping_item_name', lang) or 'Item Name'
         self.quantity.label.text = trans('shopping_quantity', lang) or 'Quantity'
@@ -344,6 +346,18 @@ class ShoppingItemsForm(FlaskForm):
         self.status.label.text = trans('shopping_status', lang) or 'Status'
         self.frequency.label.text = trans('shopping_frequency', lang) or 'Frequency (days)'
         self.submit.label.text = trans('shopping_item_submit', lang) or 'Add Item'
+
+    def validate_price(self, price):
+        if price.data is None:
+            logger.debug(f"Price validation failed: Price is None", extra={'session_id': session.get('sid', 'no-session-id')})
+            raise ValidationError(trans('shopping_price_required', default='Price is required'))
+        try:
+            price.data = float(price.data)
+            if price.data < 0:
+                raise ValidationError(trans('shopping_price_range', default='Price must be non-negative'))
+        except (ValueError, TypeError):
+            logger.error(f"Price validation failed: {price.data}", extra={'session_id': session.get('sid', 'no-session-id')})
+            raise ValidationError(trans('shopping_price_invalid', default='Invalid price format'))
 
     def validate_status(self, status):
         valid_choices = ['to_buy', 'bought']
@@ -447,8 +461,9 @@ def new():
 
     if request.method == 'POST':
         action = request.form.get('action')
+        logger.debug(f"Processing action: {action} with form data: {request.form.to_dict()}", extra={'session_id': session.get('sid', 'no-session-id')})
         if action == 'create_list':
-            logger.debug(f"Processing create_list action with form data: {request.form}", extra={'session_id': session.get('sid', 'no-session-id')})
+            logger.debug(f"Processing create_list action with form data: {request.form.to_dict()}", extra={'session_id': session.get('sid', 'no-session-id')})
             if list_form.validate_on_submit():
                 session_id = session.get('sid', str(uuid.uuid4()))
                 if not session.get('sid'):
@@ -576,7 +591,7 @@ def new():
                                 new_status = item_data['status']
                                 new_store = item_data['store']
                                 new_frequency = int(item_data['frequency'])
-                                if new_quantity < 1 or new_quantity > 1000 or new_price < 0 or new_price > 1000000 or new_frequency < 1 or new_frequency > 365:
+                                if new_quantity < 1 or new_quantity > 1000 or new_price is None or new_price < 0 or new_price > 1000000 or new_frequency < 1 or new_frequency > 365:
                                     raise ValueError('Invalid input range')
                                 new_item_data = {
                                     '_id': ObjectId(),
@@ -804,7 +819,7 @@ def manage():
         list_items = list(db.shopping_items.find({'list_id': str(lst['_id'])}))
         items_count = len(list_items)
         bought_items = len([item for item in list_items if item.get('status') == 'bought'])
-        list_total = sum(item.get('price', 0) * item.get('quantity', 1) for item in list_items)
+        list_total = sum(item.get('price', 0) * item['quantity'] for item in list_items)
         
         list_data = {
             'id': str(lst['_id']),
@@ -892,8 +907,10 @@ def edit_list(list_id):
     session.modified = True
 
     db = get_mongo_db()
+    session_id = session.get('sid', 'no-session-id')
 
     if not ObjectId.is_valid(list_id):
+        logger.error(f"Invalid list ID: {list_id}", extra={'session_id': session_id})
         flash(trans('shopping_invalid_list_id', default='Invalid list ID.'), 'danger')
         return redirect(url_for('shopping.manage'))
 
@@ -901,6 +918,7 @@ def edit_list(list_id):
     shopping_list = db.shopping_lists.find_one({'_id': ObjectId(list_id), **filter_criteria})
 
     if not shopping_list:
+        logger.error(f"List not found: {list_id}", extra={'session_id': session_id})
         flash(trans('shopping_list_not_found', default='List not found.'), 'danger')
         return redirect(url_for('shopping.manage'))
 
@@ -926,9 +944,10 @@ def edit_list(list_id):
 
     if request.method == 'POST':
         action = request.form.get('action')
-        session_id = session.get('sid', str(uuid.uuid4()))
+        logger.debug(f"Processing action: {action} with form data: {request.form.to_dict()}", extra={'session_id': session_id})
 
         if action == 'update_list':
+            logger.debug(f"Attempting to update list: {list_id} with data: {request.form.to_dict()}", extra={'session_id': session_id})
             if list_form.validate_on_submit():
                 try:
                     updated_data = {
@@ -941,10 +960,12 @@ def edit_list(list_id):
                         {'$set': updated_data}
                     )
                     if result.modified_count > 0:
+                        logger.info(f"List {list_id} updated successfully", extra={'session_id': session_id})
                         flash(trans('shopping_list_updated', default='Shopping list updated successfully!'), 'success')
                         get_shopping_lists.cache_clear()
                         return redirect(url_for('shopping.edit_list', list_id=list_id))
                     else:
+                        logger.warning(f"No changes made to list {list_id}", extra={'session_id': session_id})
                         flash(trans('shopping_update_failed', default='Failed to update list.'), 'danger')
                 except errors.WriteError as e:
                     logger.error(f"Failed to update list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
@@ -955,8 +976,10 @@ def edit_list(list_id):
             else:
                 form_errors = {field: [trans(error, default=error) for error in field_errors] for field, field_errors in list_form.errors.items()}
                 logger.debug(f"List form validation failed: {form_errors}", extra={'session_id': session_id})
+                flash(trans('shopping_form_invalid', default='Invalid form data.'), 'danger')
 
         elif action == 'add_item':
+            logger.debug(f"Attempting to add item to list: {list_id} with data: {request.form.to_dict()}", extra={'session_id': session_id})
             item_form = ShoppingItemsForm()
             if item_form.validate_on_submit():
                 try:
@@ -983,6 +1006,7 @@ def edit_list(list_id):
                                 session=mongo_session
                             )
                             if existing_items > 0:
+                                logger.warning(f"Duplicate item name found: {new_item_data['name']}", extra={'session_id': session_id})
                                 flash(trans('shopping_duplicate_item_name', default='Item name already exists in this list.'), 'danger')
                                 return redirect(url_for('shopping.edit_list', list_id=list_id))
                             
@@ -994,6 +1018,7 @@ def edit_list(list_id):
                                 {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
                                 session=mongo_session
                             )
+                            logger.info(f"Item {created_item_id} added to list {list_id}", extra={'session_id': session_id})
                             flash(trans('shopping_item_added', default='Item added successfully!'), 'success')
                             if total_spent > shopping_list['budget']:
                                 flash(trans('shopping_over_budget', default='Warning: Total spent exceeds budget by ') + format_currency(total_spent - shopping_list['budget']) + '.', 'warning')
@@ -1008,10 +1033,13 @@ def edit_list(list_id):
             else:
                 form_errors = {field: [trans(error, default=error) for error in field_errors] for field, field_errors in item_form.errors.items()}
                 logger.debug(f"Item form validation failed: {form_errors}", extra={'session_id': session_id})
+                flash(trans('shopping_form_invalid', default='Invalid form data.'), 'danger')
 
         elif action == 'update_item':
             item_id = request.form.get('item_id')
+            logger.debug(f"Attempting to update item {item_id} in list {list_id} with data: {request.form.to_dict()}", extra={'session_id': session_id})
             if not ObjectId.is_valid(item_id):
+                logger.error(f"Invalid item ID: {item_id}", extra={'session_id': session_id})
                 flash(trans('shopping_invalid_item_id', default='Invalid item ID.'), 'danger')
                 return redirect(url_for('shopping.edit_list', list_id=list_id))
             item_form = ShoppingItemsForm()
@@ -1021,6 +1049,7 @@ def edit_list(list_id):
                         with mongo_session.start_transaction():
                             existing_item = db.shopping_items.find_one({'_id': ObjectId(item_id), 'list_id': str(list_id)}, session=mongo_session)
                             if not existing_item:
+                                logger.error(f"Item not found: {item_id}", extra={'session_id': session_id})
                                 flash(trans('shopping_item_not_found', default='Item not found.'), 'danger')
                                 return redirect(url_for('shopping.edit_list', list_id=list_id))
                             updated_item_data = {
@@ -1040,6 +1069,7 @@ def edit_list(list_id):
                                 session=mongo_session
                             )
                             if existing_items > 0:
+                                logger.warning(f"Duplicate item name found: {updated_item_data['name']}", extra={'session_id': session_id})
                                 flash(trans('shopping_duplicate_item_name', default='Item name already exists in this list.'), 'danger')
                                 return redirect(url_for('shopping.edit_list', list_id=list_id))
                             result = db.shopping_items.update_one(
@@ -1055,12 +1085,14 @@ def edit_list(list_id):
                                     {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
                                     session=mongo_session
                                 )
+                                logger.info(f"Item {item_id} updated successfully in list {list_id}", extra={'session_id': session_id})
                                 flash(trans('shopping_item_updated', default='Item updated successfully!'), 'success')
                                 if total_spent > shopping_list['budget']:
                                     flash(trans('shopping_over_budget', default='Warning: Total spent exceeds budget by ') + format_currency(total_spent - shopping_list['budget']) + '.', 'warning')
                                 get_shopping_lists.cache_clear()
                                 return redirect(url_for('shopping.edit_list', list_id=list_id))
                             else:
+                                logger.warning(f"No changes made to item {item_id} in list {list_id}", extra={'session_id': session_id})
                                 flash(trans('shopping_update_item_failed', default='Failed to update item.'), 'danger')
                 except errors.WriteError as e:
                     logger.error(f"Failed to update item {item_id} in list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
@@ -1071,15 +1103,23 @@ def edit_list(list_id):
             else:
                 form_errors = {field: [trans(error, default=error) for error in field_errors] for field, field_errors in item_form.errors.items()}
                 logger.debug(f"Item update form validation failed: {form_errors}", extra={'session_id': session_id})
+                flash(trans('shopping_form_invalid', default='Invalid form data.'), 'danger')
 
         elif action == 'delete_item':
             item_id = request.form.get('item_id')
+            logger.debug(f"Attempting to delete item {item_id} from list {list_id}", extra={'session_id': session_id})
             if not ObjectId.is_valid(item_id):
+                logger.error(f"Invalid item ID: {item_id}", extra={'session_id': session_id})
                 flash(trans('shopping_invalid_item_id', default='Invalid item ID.'), 'danger')
                 return redirect(url_for('shopping.edit_list', list_id=list_id))
             try:
                 with db.client.start_session() as mongo_session:
                     with mongo_session.start_transaction():
+                        existing_item = db.shopping_items.find_one({'_id': ObjectId(item_id), 'list_id': str(list_id)}, session=mongo_session)
+                        if not existing_item:
+                            logger.error(f"Item not found: {item_id}", extra={'session_id': session_id})
+                            flash(trans('shopping_item_not_found', default='Item not found.'), 'danger')
+                            return redirect(url_for('shopping.edit_list', list_id=list_id))
                         result = db.shopping_items.delete_one(
                             {'_id': ObjectId(item_id), 'list_id': str(list_id), **filter_criteria},
                             session=mongo_session
@@ -1092,10 +1132,12 @@ def edit_list(list_id):
                                 {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
                                 session=mongo_session
                             )
+                            logger.info(f"Item {item_id} deleted successfully from list {list_id}", extra={'session_id': session_id})
                             flash(trans('shopping_item_deleted', default='Item deleted successfully!'), 'success')
                             get_shopping_lists.cache_clear()
                             return redirect(url_for('shopping.edit_list', list_id=list_id))
                         else:
+                            logger.warning(f"No item deleted for ID {item_id} in list {list_id}", extra={'session_id': session_id})
                             flash(trans('shopping_delete_item_failed', default='Failed to delete item.'), 'danger')
             except errors.WriteError as e:
                 logger.error(f"Failed to delete item {item_id} from list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
@@ -1146,12 +1188,14 @@ def toggle_item_status():
     session_id = session.get('sid', 'no-session-id')
 
     if not ObjectId.is_valid(item_id):
+        logger.error(f"Invalid item ID: {item_id}", extra={'session_id': session_id})
         return jsonify({'success': False, 'error': trans('shopping_invalid_item_id', default='Invalid item ID.')}), 400
 
     filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
     item = db.shopping_items.find_one({'_id': ObjectId(item_id), **filter_criteria})
 
     if not item:
+        logger.error(f"Item not found: {item_id}", extra={'session_id': session_id})
         return jsonify({'success': False, 'error': trans('shopping_item_not_found', default='Item not found.')}), 404
 
     new_status = 'bought' if item.get('status') == 'to_buy' else 'to_buy'
@@ -1159,6 +1203,7 @@ def toggle_item_status():
     try:
         with db.client.start_session() as mongo_session:
             with mongo_session.start_transaction():
+                logger.debug(f"Updating status for item {item_id} to {new_status}", extra={'session_id': session_id})
                 result = db.shopping_items.update_one(
                     {'_id': ObjectId(item_id), **filter_criteria},
                     {'$set': {'status': new_status, 'updated_at': datetime.utcnow()}},
@@ -1172,8 +1217,10 @@ def toggle_item_status():
                         {'$set': {'total_spent': total_spent, 'updated_at': datetime.utcnow()}},
                         session=mongo_session
                     )
+                    logger.info(f"Item {item_id} status updated to {new_status}", extra={'session_id': session_id})
                     return jsonify({'success': True, 'message': trans('shopping_item_status_updated', default='Item status updated successfully!')})
                 else:
+                    logger.warning(f"No changes made to item {item_id} status", extra={'session_id': session_id})
                     return jsonify({'success': False, 'error': trans('shopping_update_item_failed', default='Failed to update item status.')}), 500
     except errors.WriteError as e:
         logger.error(f"Failed to toggle status for item {item_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
@@ -1192,46 +1239,60 @@ def delete_list():
         logger.debug(f"New session created with sid: {session['sid']}")
     
     db = get_mongo_db()
+    session_id = session.get('sid', 'no-session-id')
     
     try:
         data = request.get_json()
         list_id = data.get('list_id')
         
         if not ObjectId.is_valid(list_id):
+            logger.error(f"Invalid list ID: {list_id}", extra={'session_id': session_id})
             return jsonify({'success': False, 'error': trans('shopping_invalid_list_id', default='Invalid list ID.')}), 400
         
         filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
         shopping_list = db.shopping_lists.find_one({'_id': ObjectId(list_id), **filter_criteria})
         
         if not shopping_list:
+            logger.error(f"List not found: {list_id}", extra={'session_id': session_id})
             return jsonify({'success': False, 'error': trans('shopping_list_not_found', default='List not found.')}), 404
         
-        db.shopping_items.delete_many({'list_id': list_id})
-        
-        result = db.shopping_lists.delete_one({'_id': ObjectId(list_id)})
-        
-        if result.deleted_count > 0:
-            if current_user.is_authenticated and not is_admin():
-                if not deduct_ficore_credits(db, current_user.id, 1, 'delete_shopping_list', list_id):
-                    logger.warning(f"Failed to deduct FC for deleting list {list_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'no-session-id')})
-            
-            try:
-                log_tool_usage(
-                    tool_name='shopping',
-                    db=db,
-                    user_id=current_user.id,
-                    session_id=session.get('sid', 'no-session'),
-                    action='delete_list'
-                )
-            except Exception as e:
-                logger.warning(f"Error logging delete activity: {str(e)}", extra={'session_id': session.get('sid', 'no-session-id')})
-            
-            return jsonify({'success': True, 'message': trans('shopping_list_deleted', default='List deleted successfully!')})
-        else:
-            return jsonify({'success': False, 'error': trans('shopping_delete_failed', default='Failed to delete list.')}), 500
+        try:
+            with db.client.start_session() as mongo_session:
+                with mongo_session.start_transaction():
+                    db.shopping_items.delete_many({'list_id': list_id}, session=mongo_session)
+                    
+                    result = db.shopping_lists.delete_one({'_id': ObjectId(list_id)}, session=mongo_session)
+                    
+                    if result.deleted_count > 0:
+                        if current_user.is_authenticated and not is_admin():
+                            if not deduct_ficore_credits(db, current_user.id, 1, 'delete_shopping_list', list_id, mongo_session):
+                                logger.warning(f"Failed to deduct FC for deleting list {list_id} by user {current_user.id}", extra={'session_id': session_id})
+                        
+                        try:
+                            log_tool_usage(
+                                tool_name='shopping',
+                                db=db,
+                                user_id=current_user.id,
+                                session_id=session_id,
+                                action='delete_list'
+                            )
+                        except Exception as e:
+                            logger.warning(f"Error logging delete activity: {str(e)}", extra={'session_id': session_id})
+                        
+                        logger.info(f"List {list_id} deleted successfully", extra={'session_id': session_id})
+                        return jsonify({'success': True, 'message': trans('shopping_list_deleted', default='List deleted successfully!')})
+                    else:
+                        logger.warning(f"No list deleted for ID {list_id}", extra={'session_id': session_id})
+                        return jsonify({'success': False, 'error': trans('shopping_delete_failed', default='Failed to delete list.')}), 500
+        except errors.WriteError as e:
+            logger.error(f"Failed to delete list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+            return jsonify({'success': False, 'error': trans('shopping_delete_error', default='Error deleting list due to validation failure.')}), 500
+        except Exception as e:
+            logger.error(f"Unexpected error deleting list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+            return jsonify({'success': False, 'error': trans('shopping_delete_error', default=f'Error deleting list: {str(e)}')}), 500
             
     except Exception as e:
-        logger.error(f"Error deleting list: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'no-session-id')})
+        logger.error(f"Error processing delete list request: {str(e)}", exc_info=True, extra={'session_id': session_id})
         return jsonify({'success': False, 'error': trans('shopping_delete_error', default='Error deleting list.')}), 500
 
 @shopping_bp.route('/export_pdf/<list_id>', methods=['GET'])
@@ -1241,16 +1302,20 @@ def export_pdf(list_id):
     """Export shopping list to PDF with FC deduction."""
     if 'sid' not in session:
         session['sid'] = str(uuid.uuid4())
+        logger.debug(f"New session created with sid: {session['sid']}")
     
     db = get_mongo_db()
+    session_id = session.get('sid', 'no-session-id')
     
     try:
         if not ObjectId.is_valid(list_id):
+            logger.error(f"Invalid list ID: {list_id}", extra={'session_id': session_id})
             flash(trans('shopping_invalid_list_id', default='Invalid list ID.'), 'danger')
             return redirect(url_for('shopping.manage'))
         
         if current_user.is_authenticated and not is_admin():
-            if not check_ficore_credit_balance(required_amount=2, user_id=current_user.id):
+            if not clean_ficore_credit_balance(required_amount=2, user_id=current_user.id):
+                logger.warning(f"Insufficient credits for PDF export for user {current_user.id}", extra={'session_id': session_id})
                 flash(trans('shopping_insufficient_credits_pdf', default='Insufficient credits for PDF export. PDF export costs 2 FC.'), 'danger')
                 return redirect(url_for('shopping.manage'))
         
@@ -1258,6 +1323,7 @@ def export_pdf(list_id):
         shopping_list = db.shopping_lists.find_one({'_id': ObjectId(list_id), **filter_criteria})
         
         if not shopping_list:
+            logger.error(f"List not found: {list_id}", extra={'session_id': session_id})
             flash(trans('shopping_list_not_found', default='List not found.'), 'danger')
             return redirect(url_for('shopping.manage'))
         
@@ -1319,9 +1385,11 @@ def export_pdf(list_id):
         
         if current_user.is_authenticated and not is_admin():
             if not deduct_ficore_credits(db, current_user.id, 2, 'export_shopping_list_pdf', list_id):
+                logger.warning(f"Failed to deduct credits for PDF export for list {list_id} by user {current_user.id}", extra={'session_id': session_id})
                 flash(trans('shopping_credit_deduction_failed', default='Failed to deduct credits for PDF export.'), 'danger')
                 return redirect(url_for('shopping.manage'))
         
+        logger.info(f"PDF exported successfully for list {list_id}", extra={'session_id': session_id})
         return Response(
             buffer.getvalue(),
             mimetype='application/pdf',
@@ -1329,13 +1397,14 @@ def export_pdf(list_id):
         )
         
     except Exception as e:
-        logger.error(f"Error exporting shopping list PDF: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'no-session-id')})
+        logger.error(f"Error exporting shopping list PDF for list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
         flash(trans('shopping_pdf_error', default='Error generating PDF report.'), 'danger')
         return redirect(url_for('shopping.manage'))
 
 @shopping_bp.errorhandler(CSRFError)
 def handle_csrf_error(e):
-    logger.error(f"CSRF error on {request.path}: {e.description}")
+    session_id = session.get('sid', 'no-session-id')
+    logger.error(f"CSRF error on {request.path}: {e.description}", extra={'session_id': session_id})
     flash(trans('shopping_csrf_error', default='Form submission failed. Please refresh and try again.'), 'danger')
     return redirect(url_for('shopping.new', tab='create-list')), 404
 
