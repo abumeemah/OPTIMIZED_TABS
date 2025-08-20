@@ -18,7 +18,7 @@
     <div class="row">
         <div class="col-lg-8">
             <form method="POST" action="{{ url_for('budget.new') }}" id="budgetForm" class="validate-form">
-                {{ form.csrf_token }}
+                {{ form.hidden_tag() }} <!-- Updated to use hidden_tag() for CSRF token -->
                 <input type="hidden" name="action" value="create_budget">
 
                 <div class="card mb-4">
@@ -87,16 +87,16 @@
                         <div class="custom-categories-container mb-3">
                             <h6 class="mt-3">{{ t('budget_custom_categories', default='Custom Categories') }}</h6>
                             <div id="custom-categories">
-                                {% for custom_category in form.custom_categories %}
+                                {% for category in form.custom_categories %}
                                     <div class="custom-category-entry row mb-2" data-index="{{ loop.index0 }}">
                                         <div class="col-md-5">
-                                            <label for="{{ custom_category.name.id }}" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
-                                            {{ custom_category.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), required=True) }}
+                                            <label for="{{ category.name.id }}" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
+                                            {{ category.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), required=True, value=category.name.data or '') }}
                                             <div class="invalid-feedback">{{ t('budget_custom_category_name_invalid', default='Please enter a valid category name (max 50 characters)') }}</div>
                                         </div>
                                         <div class="col-md-5">
-                                            <label for="{{ custom_category.amount.id }}" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
-                                            {{ custom_category.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", required=True) }}
+                                            <label for="{{ category.amount.id }}" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
+                                            {{ category.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", required=True, value=category.amount.data or '') }}
                                             <div class="invalid-feedback">{{ t('budget_custom_category_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
                                         </div>
                                         <div class="col-md-2 d-flex align-items-end">
@@ -234,27 +234,33 @@ document.addEventListener('DOMContentLoaded', function() {
     function attachRemoveEventListeners() {
         const removeButtons = document.querySelectorAll('.remove-category');
         removeButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const entry = this.closest('.custom-category-entry');
-                entry.remove();
-            });
+            button.removeEventListener('click', removeCategoryHandler); // Prevent duplicate listeners
+            button.addEventListener('click', removeCategoryHandler);
         });
+    }
+
+    function removeCategoryHandler() {
+        const entry = this.closest('.custom-category-entry');
+        entry.remove();
     }
 
     // Real-time validation for all inputs
     function updateValidation() {
         const inputs = form.querySelectorAll('input[type="number"], input[type="text"]');
         inputs.forEach(input => {
-            input.addEventListener('input', function() {
-                if (this.checkValidity()) {
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
-                } else {
-                    this.classList.remove('is-valid');
-                    this.classList.add('is-invalid');
-                }
-            });
+            input.removeEventListener('input', validateInputHandler); // Prevent duplicate listeners
+            input.addEventListener('input', validateInputHandler);
         });
+    }
+
+    function validateInputHandler() {
+        if (this.checkValidity()) {
+            this.classList.remove('is-invalid');
+            this.classList.add('is-valid');
+        } else {
+            this.classList.remove('is-valid');
+            this.classList.add('is-invalid');
+        }
     }
 
     // Form submission validation
