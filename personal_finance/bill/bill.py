@@ -865,8 +865,9 @@ def dashboard():
         
         bills_data = []
         paid_count = pending_count = overdue_count = 0
-        total_paid = total_overdue = 0.0
+        total_paid = total_overdue = total_pending = 0.0
         upcoming_bills = []
+        today = date.today()
         
         for bill in bills:
             due_date = bill['due_date']
@@ -875,18 +876,24 @@ def dashboard():
                     due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
                 except ValueError:
                     current_app.logger.warning(f"Invalid due_date for bill {bill['_id']}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
-                    due_date = date.today()
+                    due_date = today
             elif isinstance(due_date, datetime):
                 due_date = due_date.date()
             elif not isinstance(due_date, date):
                 current_app.logger.warning(f"Invalid due_date type for bill {bill['_id']}: {bill.get('due_date')}", extra={'session_id': session.get('sid', 'unknown')})
-                due_date = date.today()
+                due_date = today
+                
+            try:
+                amount = float(bill.get('amount', 0.0))
+            except (ValueError, TypeError) as e:
+                current_app.logger.warning(f"Invalid amount for bill {bill['_id']}: {bill.get('amount')}, error: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
+                amount = 0.0
                 
             bill_data = {
                 'id': str(bill['_id']),
                 'bill_name': bill.get('bill_name', ''),
-                'amount': format_currency(bill.get('amount', 0.0)),
-                'amount_raw': float(bill.get('amount', 0.0)),
+                'amount': format_currency(amount),
+                'amount_raw': amount,
                 'due_date': due_date,
                 'due_date_formatted': due_date.strftime('%Y-%m-%d'),
                 'frequency': bill.get('frequency', 'one-time'),
@@ -900,12 +907,13 @@ def dashboard():
             
             if bill_data['status'] == 'paid':
                 paid_count += 1
-                total_paid += bill_data['amount_raw']
+                total_paid += amount
             elif bill_data['status'] == 'pending':
                 pending_count += 1
+                total_pending += amount
             elif bill_data['status'] == 'overdue':
                 overdue_count += 1
-                total_overdue += bill_data['amount_raw']
+                total_overdue += amount
             
             if bill_data['status'] != 'paid':
                 upcoming_bills.append((bill_data['id'], bill_data, None))
@@ -914,7 +922,7 @@ def dashboard():
         for _, bill_data, _ in bills_data:
             category = bill_data['category']
             if category not in categories:
-                categories[category] = 0
+                categories[category] = 0.0
             categories[category] += bill_data['amount_raw']
 
         insights = []
@@ -926,6 +934,8 @@ def dashboard():
                 insights.append(trans('bill_insight_overdue_exceeds_paid', default='Overdue amount exceeds paid amount. Prioritize clearing overdue bills.'))
             if total_overdue > total_bills * 0.3:
                 insights.append(trans('bill_insight_high_overdue', default='Overdue bills exceed 30% of total bills. Prioritize clearing overdue amounts.'))
+            if total_pending > total_bills * 0.5:
+                insights.append(trans('bill_insight_high_pending', default='Pending bills exceed 50% of total bills. Plan your payments accordingly.'))
 
         return render_template(
             'bill/dashboard.html',
@@ -936,7 +946,8 @@ def dashboard():
             overdue_count=overdue_count,
             total_paid=format_currency(total_paid),
             total_overdue=format_currency(total_overdue),
-            categories=categories,
+            total_pending=format_currency(total_pending),
+            categories={trans(f'bill_category_{k}', default=k.replace('_', ' ').title()): v for k, v in categories.items() if v > 0},
             tips=tips,
             insights=insights,
             activities=activities,
@@ -954,6 +965,7 @@ def dashboard():
             overdue_count=0,
             total_paid=format_currency(0.0),
             total_overdue=format_currency(0.0),
+            total_pending=format_currency(0.0),
             categories={},
             tips=tips,
             insights=[],
