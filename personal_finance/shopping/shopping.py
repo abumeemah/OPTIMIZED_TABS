@@ -915,6 +915,7 @@ def edit_list(list_id):
     total_cost = sum(item['price_raw'] * item['quantity'] for item in items)
 
     list_form = ShoppingListForm(data={'name': shopping_list['name'], 'budget': shopping_list['budget']})
+    item_form = ShoppingItemsForm()  # Instantiate item_form for GET request
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -945,7 +946,7 @@ def edit_list(list_id):
                 flash(trans('shopping_update_error', default=f'Error updating list: {str(e)}'), 'danger')
 
         elif action == 'add_item':
-            item_form = ShoppingItemsForm()
+            item_form = ShoppingItemsForm()  # Already instantiated, but kept for POST consistency
             if item_form.validate_on_submit():
                 try:
                     with db.client.start_session() as mongo_session:
@@ -1077,6 +1078,7 @@ def edit_list(list_id):
     return render_template(
         'shopping/edit_list.html',
         list_form=list_form,
+        item_form=item_form,  # Add item_form to the template context
         list_id=list_id,
         shopping_list=shopping_list,
         items=items,
