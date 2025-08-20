@@ -873,6 +873,64 @@ def get_list_details():
         logger.error(f"Error rendering list details for {list_id}: {str(e)}")
         return jsonify({'success': False, 'error': trans('shopping_load_error', default='Failed to load list details.')}), 500
 
+@shopping_bp.route('/edit/<list_id>', methods=['GET', 'POST'])
+@custom_login_required
+@requires_role(['personal', 'admin'])
+def edit_list(list_id):
+    """Edit an existing shopping list."""
+    if 'sid' not in session:
+        session['sid'] = str(uuid.uuid4())
+        logger.debug(f"New session created with sid: {session['sid']}")
+    session.permanent = True
+    session.modified = True
+
+    db = get_mongo_db()
+
+    if not ObjectId.is_valid(list_id):
+        flash(trans('shopping_invalid_list_id', default='Invalid list ID.'), 'danger')
+        return redirect(url_for('shopping.manage'))
+
+    filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
+    shopping_list = db.shopping_lists.find_one({'_id': ObjectId(list_id), **filter_criteria})
+
+    if not shopping_list:
+        flash(trans('shopping_list_not_found', default='List not found.'), 'danger')
+        return redirect(url_for('shopping.manage'))
+
+    list_form = ShoppingListForm(data={'name': shopping_list['name'], 'budget': shopping_list['budget']})
+
+    if request.method == 'POST' and list_form.validate_on_submit():
+        try:
+            updated_data = {
+                'name': list_form.name.data.strip(),
+                'budget': float(list_form.budget.data),
+                'updated_at': datetime.utcnow()
+            }
+            result = db.shopping_lists.update_one(
+                {'_id': ObjectId(list_id), **filter_criteria},
+                {'$set': updated_data}
+            )
+            if result.modified_count > 0:
+                flash(trans('shopping_list_updated', default='Shopping list updated successfully!'), 'success')
+                # Clear cache if applicable
+                get_shopping_lists.cache_clear()
+                return redirect(url_for('shopping.manage'))
+            else:
+                flash(trans('shopping_update_failed', default='Failed to update list.'), 'danger')
+        except errors.WriteError as e:
+            logger.error(f"Failed to update list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'no-session-id')})
+            flash(trans('shopping_update_error', default='Error updating list due to validation failure.'), 'danger')
+        except Exception as e:
+            logger.error(f"Unexpected error updating list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'no-session-id')})
+            flash(trans('shopping_update_error', default=f'Error updating list: {str(e)}'), 'danger')
+
+    return render_template(
+        'shopping/edit_list.html',
+        list_form=list_form,
+        list_id=list_id,
+        tool_title=trans('shopping_edit_list', default='Edit Shopping List')
+    )
+
 @shopping_bp.route('/delete_list', methods=['POST'])
 @custom_login_required
 @requires_role(['personal', 'admin'])
