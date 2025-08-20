@@ -427,7 +427,6 @@ def log_tool_usage(action, tool_name=None, details=None, user_id=None, db=None, 
     except ValueError as e:
         logger.error(
             f"Invalid input for log_tool_usage: {str(e)}",
-            exc_info=True,
             extra={
                 'user_id': user_id or 'unknown',
                 'session_id': session_id or session.get('sid', 'no-session-id') if has_request_context() else 'no-session-id',
@@ -893,16 +892,16 @@ def log_user_action(action, details=None, user_id=None):
     except Exception as e:
         logger.error(f"{trans('general_user_action_log_error', default='Error logging user action')}: {str(e)}", exc_info=True)
 
-def get_recent_activities(user_id=None, is_admin_user=False, db=None, session_id=None, limit=10):
+def get_recent_activities(user_id=None, is_admin_user=False, db=None, session_id=None, limit=2):
     """
-    Fetch recent activities across all tools for a user or session.
+    Fetch recent activities across all tools for a user or session, optimized for homepage display.
     
     Args:
         user_id: ID of the user (optional for admin)
         is_admin_user: Whether the user is an admin (default: False)
         db: MongoDB database instance (optional)
         session_id: Session ID for anonymous users (optional)
-        limit: Maximum number of activities to return (default: 10)
+        limit: Maximum number of activities to return (default: 2 for homepage)
     
     Returns:
         list: List of recent activity records
@@ -933,16 +932,22 @@ def get_recent_activities(user_id=None, is_admin_user=False, db=None, session_id
                 'icon': 'bi-receipt'
             })
 
-        # Fetch recent budgets
+        # Fetch recent budgets with custom categories
         budgets = db.budgets.find(query).sort('created_at', -1).limit(5)
         for budget in budgets:
+            custom_categories = budget.get('custom_categories', [])
+            category_names = [cat['name'] for cat in custom_categories] if custom_categories else []
+            description = trans('recent_activity_budget_created', default='Created budget with income: {amount}', amount=budget.get('income', 0))
+            if category_names:
+                description += f" ({trans('recent_activity_budget_categories', default='Categories: {categories}', categories=', '.join(category_names))})"
             activities.append({
                 'type': 'budget',
-                'description': trans('recent_activity_budget_created', default='Created budget with income: {amount}', amount=budget.get('income', 0)),
+                'description': description,
                 'timestamp': budget.get('created_at', datetime.utcnow()).isoformat(),
                 'details': {
                     'income': budget.get('income', 0),
-                    'surplus_deficit': budget.get('surplus_deficit', 0)
+                    'surplus_deficit': budget.get('surplus_deficit', 0),
+                    'custom_categories': custom_categories
                 },
                 'icon': 'bi-cash-coin'
             })
@@ -979,7 +984,7 @@ def get_recent_activities(user_id=None, is_admin_user=False, db=None, session_id
         activities.sort(key=lambda x: x['timestamp'], reverse=True)
         
         logger.debug(
-            f"Fetched {len(activities)} recent activities for {'user ' + str(user_id) if user_id else 'session ' + str(session_id) if session_id else 'all'}",
+            f"Fetched {len(activities)} recent activities for {'user ' + str(user_id) if user_id else 'session ' + str(session_id) if session_id else 'all'}, returning {min(len(activities), limit)}",
             extra={'session_id': session_id or 'unknown', 'ip': request.remote_addr or 'unknown'}
         )
         
