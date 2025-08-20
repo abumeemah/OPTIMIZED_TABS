@@ -211,7 +211,7 @@
                                                 <button type="button" class="btn btn-sm {{ 'btn-success' if item.status == 'bought' else 'btn-outline-secondary' }}" 
                                                         onclick="toggleItemStatus('{{ item.id }}', '{{ item.status }}')" id="toggle-btn-{{ item.id }}">
                                                     <i class="fas {{ 'fa-check' if item.status == 'bought' else 'fa-shopping-cart' }} me-1"></i>
-                                                    {{ t('shopping_status_' + item.status, default=(item.status == 'bought' ? 'Bought' : 'To Buy')) }}
+                                                    {{ t('shopping_status_' + item.status, default=('Bought' if item.status == 'bought' else 'To Buy')) }}
                                                 </button>
                                             </td>
                                             <td>
@@ -431,3 +431,4 @@ function deleteItem(itemId, itemName) {
 }
 </script>
 {% endblock %}
+
