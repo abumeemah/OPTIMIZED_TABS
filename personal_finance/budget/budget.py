@@ -12,6 +12,7 @@ from translations import trans
 from bson import ObjectId
 from models import log_tool_usage, create_budget
 import uuid
+import bleach
 
 budget_bp = Blueprint(
     'budget',
@@ -257,7 +258,7 @@ class BudgetForm(FlaskForm):
     custom_categories = FieldList(
         FormField(CustomCategoryForm),
         min_entries=0,
-        max_entries=10,  # Updated to match template's JavaScript limit
+        max_entries=10,
         validators=[Optional()]
     )
     submit = SubmitField(trans('budget_submit', default='Submit'))
@@ -342,7 +343,8 @@ def new():
     session_id = session.sid  # Use Flask's built-in session ID
     current_app.logger.debug(f"Using session ID: {session_id}", extra={'session_id': session_id})
     
-    form = BudgetForm()
+    # Instantiate form with request.form for POST requests to handle nested custom_categories
+    form = BudgetForm(formdata=request.form if request.method == 'POST' else None)
     db = utils.get_mongo_db()
 
     valid_tabs = ['create-budget', 'dashboard']
@@ -377,6 +379,7 @@ def new():
     try:
         filter_criteria = {} if utils.is_admin() else {'user_id': current_user.id}
         if request.method == 'POST':
+            current_app.logger.debug(f"POST form data: {request.form}", extra={'session_id': session_id})
             if not form.validate_on_submit():
                 current_app.logger.debug(f"Form validation failed: {form.errors}", extra={'session_id': session_id})
                 flash(trans('budget_form_invalid', default='Invalid form data. Please check your inputs.'), 'danger')
@@ -422,7 +425,6 @@ def new():
                     active_tab=active_tab
                 ), 400
 
-            current_app.logger.debug(f"Form data: {request.form}", extra={'session_id': session_id})
             action = request.form.get('action')
             if action == 'create_budget' and form.validate_on_submit():
                 if current_user.is_authenticated and not utils.is_admin():
@@ -443,10 +445,17 @@ def new():
                     flash(trans('budget_log_error', default='Error logging budget creation. Continuing with submission.'), 'warning')
 
                 income = float(form.income.data or 0.0)
-                custom_categories = [
-                    {'name': bleach.clean(cat.name.data), 'amount': float(cat.amount.data or 0.0)}
-                    for cat in form.custom_categories.entries if cat.name.data and cat.amount.data
-                ]
+                custom_categories = []
+                for cat in form.custom_categories.entries:
+                    try:
+                        if isinstance(cat.form, CustomCategoryForm) and cat.form.name.data and cat.form.amount.data:
+                            custom_categories.append({
+                                'name': bleach.clean(cat.form.name.data),
+                                'amount': float(cat.form.amount.data or 0.0)
+                            })
+                    except AttributeError as e:
+                        current_app.logger.warning(f"Invalid custom category entry: {cat.__dict__}, error: {str(e)}", extra={'session_id': session_id})
+                        continue
                 expenses = sum([
                     float(form.housing.data or 0.0),
                     float(form.food.data or 0.0),
@@ -733,7 +742,7 @@ def new():
             tool_title=trans('budget_title', default='Budget Planner'),
             active_tab=active_tab
         ), 500
-        
+
 @budget_bp.route('/dashboard', methods=['GET'])
 @custom_login_required
 @utils.requires_role(['personal', 'admin'])
