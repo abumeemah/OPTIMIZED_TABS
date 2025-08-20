@@ -64,7 +64,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
     session_id = session.get('sid', 'no-session-id')
     
     try:
-        # Validate input parameters
         amount = int(amount)
         if amount not in [1, 2]:
             logger.error(f"Invalid deduction amount {amount} for user {user_id}, action: {action}. Must be 1 or 2.",
@@ -76,7 +75,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
                         extra={'session_id': session_id})
             return False
         
-        # Check if user exists and get current balance
         user = db.users.find_one({'_id': user_id}, session=mongo_session)
         if not user:
             logger.error(f"User {user_id} not found in database for credit deduction, action: {action}. Check if user_id matches _id field type.",
@@ -92,7 +90,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
                          extra={'session_id': session_id, 'user_id': user_id})
             return False
         
-        # Transaction handling with retry logic
         session_to_use = mongo_session if mongo_session else db.client.start_session()
         owns_session = not mongo_session
         max_retries = 3
@@ -100,7 +97,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
         for attempt in range(max_retries):
             try:
                 with session_to_use.start_transaction() if not mongo_session else nullcontext():
-                    # Update user balance using aggregation pipeline to ensure type consistency
                     result = db.users.update_one(
                         {'_id': user_id},
                         [{'$set': {'ficore_credit_balance': {'$toDouble': {'$subtract': ['$ficore_credit_balance', amount]}}}}],
@@ -111,7 +107,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
                         error_msg = f"Failed to deduct {amount} credits for user {user_id}, action: {action}: No documents modified. User may not exist or balance unchanged."
                         logger.error(error_msg, extra={'session_id': session_id, 'user_id': user_id})
                         
-                        # Log failed transaction
                         db.ficore_credit_transactions.insert_one({
                             '_id': ObjectId(),
                             'user_id': user_id,
@@ -125,7 +120,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
                         
                         raise ValueError(error_msg)
                     
-                    # Log successful transaction
                     transaction = {
                         '_id': ObjectId(),
                         'user_id': user_id,
@@ -138,7 +132,6 @@ def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_sessi
                     }
                     db.ficore_credit_transactions.insert_one(transaction, session=session_to_use)
                     
-                    # Log audit trail
                     db.audit_logs.insert_one({
                         'admin_id': 'system',
                         'action': f'deduct_ficore_credits_{action}',
@@ -378,8 +371,6 @@ def new():
     items_form = ShoppingItemsForm()
     db = get_mongo_db()
 
-    # No credit check needed for create-list tab - creating lists is now free
-
     valid_tabs = ['create-list', 'add-items', 'view-lists', 'manage-list']
     active_tab = request.args.get('tab', 'create-list')
     if active_tab not in valid_tabs:
@@ -388,7 +379,6 @@ def new():
     filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
     lists = {str(lst['_id']): lst for lst in db.shopping_lists.find(filter_criteria).sort('created_at', -1)}
     
-    # Preselect most recent list if none selected
     selected_list_id = request.args.get('list_id') or session.get('selected_list_id')
     if not selected_list_id and lists:
         selected_list_id = list(lists.keys())[0]
@@ -441,8 +431,6 @@ def new():
         if action == 'create_list':
             logger.debug(f"Processing create_list action with form data: {request.form}", extra={'session_id': session.get('sid', 'no-session-id')})
             if list_form.validate_on_submit():
-                # Creating lists is now free - no credit check needed
-                # Ensure session_id is always a string
                 session_id = session.get('sid', str(uuid.uuid4()))
                 if not session.get('sid'):
                     session['sid'] = session_id
@@ -460,7 +448,6 @@ def new():
                     'status': 'active'
                 }
                 try:
-                    # Creating lists is now free - no credit deduction needed
                     logger.debug(f"Creating shopping list: {list_data}", extra={'session_id': session_id})
                     created_list_id = create_shopping_list(db, list_data)
                     session['selected_list_id'] = str(list_data['_id'])
@@ -502,10 +489,12 @@ def new():
                     for error in field_errors:
                         flash(f"{field.capitalize()}: {trans(error, default=error)}", 'danger')
                 return render_template(
-                    'shopping/create_list.html',
+                    'shopping/new.html',
+                    form=list_form,
                     list_form=list_form,
                     item_form=item_form,
                     share_form=share_form,
+                    items_form=items_form,
                     lists=lists,
                     selected_list=selected_list,
                     selected_list_id=selected_list_id,
@@ -649,6 +638,7 @@ def new():
 
     return render_template(
         'shopping/new.html',
+        form=list_form,
         list_form=list_form,
         item_form=item_form,
         share_form=share_form,
@@ -695,7 +685,6 @@ def dashboard():
     filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
     lists = list(db.shopping_lists.find(filter_criteria).sort('created_at', -1).limit(10))
     
-    # Process lists data for dashboard
     lists_data = []
     total_budget = 0.0
     total_spent = 0.0
@@ -718,7 +707,7 @@ def dashboard():
             'progress': (bought_items / items_count * 100) if items_count > 0 else 0,
             'status': lst.get('status', 'active'),
             'created_at': lst.get('created_at'),
-            'items': list_items[:5]  # Show first 5 items
+            'items': list_items[:5]
         }
         lists_data.append(list_data)
         
@@ -730,7 +719,6 @@ def dashboard():
         else:
             completed_lists += 1
 
-    # Categories for chart
     categories = {}
     for lst in lists:
         list_items = list(db.shopping_items.find({'list_id': str(lst['_id'])}))
@@ -792,7 +780,6 @@ def manage():
     filter_criteria = {} if is_admin() else {'user_id': str(current_user.id)}
     lists = list(db.shopping_lists.find(filter_criteria).sort('created_at', -1))
     
-    # Process lists data
     lists_data = []
     for lst in lists:
         list_items = list(db.shopping_items.find({'list_id': str(lst['_id'])}))
@@ -862,6 +849,7 @@ def get_list_details():
     try:
         html = render_template(
             'shopping/manage_list_details.html',
+            form=ShoppingListForm(data={'name': selected_list['name'], 'budget': selected_list['budget_raw']}),
             list_form=ShoppingListForm(data={'name': selected_list['name'], 'budget': selected_list['budget_raw']}),
             item_form=ShoppingItemsForm(),
             selected_list=selected_list,
@@ -915,38 +903,42 @@ def edit_list(list_id):
     total_cost = sum(item['price_raw'] * item['quantity'] for item in items)
 
     list_form = ShoppingListForm(data={'name': shopping_list['name'], 'budget': shopping_list['budget']})
-    item_form = ShoppingItemsForm()  # Instantiate item_form for GET request
+    item_form = ShoppingItemsForm()
 
     if request.method == 'POST':
         action = request.form.get('action')
         session_id = session.get('sid', str(uuid.uuid4()))
 
-        if action == 'update_list' and list_form.validate_on_submit():
-            try:
-                updated_data = {
-                    'name': list_form.name.data.strip(),
-                    'budget': float(list_form.budget.data),
-                    'updated_at': datetime.utcnow()
-                }
-                result = db.shopping_lists.update_one(
-                    {'_id': ObjectId(list_id), **filter_criteria},
-                    {'$set': updated_data}
-                )
-                if result.modified_count > 0:
-                    flash(trans('shopping_list_updated', default='Shopping list updated successfully!'), 'success')
-                    get_shopping_lists.cache_clear()
-                    return redirect(url_for('shopping.edit_list', list_id=list_id))
-                else:
-                    flash(trans('shopping_update_failed', default='Failed to update list.'), 'danger')
-            except errors.WriteError as e:
-                logger.error(f"Failed to update list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
-                flash(trans('shopping_update_error', default='Error updating list due to validation failure.'), 'danger')
-            except Exception as e:
-                logger.error(f"Unexpected error updating list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
-                flash(trans('shopping_update_error', default=f'Error updating list: {str(e)}'), 'danger')
+        if action == 'update_list':
+            if list_form.validate_on_submit():
+                try:
+                    updated_data = {
+                        'name': list_form.name.data.strip(),
+                        'budget': float(list_form.budget.data),
+                        'updated_at': datetime.utcnow()
+                    }
+                    result = db.shopping_lists.update_one(
+                        {'_id': ObjectId(list_id), **filter_criteria},
+                        {'$set': updated_data}
+                    )
+                    if result.modified_count > 0:
+                        flash(trans('shopping_list_updated', default='Shopping list updated successfully!'), 'success')
+                        get_shopping_lists.cache_clear()
+                        return redirect(url_for('shopping.edit_list', list_id=list_id))
+                    else:
+                        flash(trans('shopping_update_failed', default='Failed to update list.'), 'danger')
+                except errors.WriteError as e:
+                    logger.error(f"Failed to update list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                    flash(trans('shopping_update_error', default='Error updating list due to validation failure.'), 'danger')
+                except Exception as e:
+                    logger.error(f"Unexpected error updating list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
+                    flash(trans('shopping_update_error', default=f'Error updating list: {str(e)}'), 'danger')
+            else:
+                form_errors = {field: [trans(error, default=error) for error in field_errors] for field, field_errors in list_form.errors.items()}
+                logger.debug(f"List form validation failed: {form_errors}", extra={'session_id': session_id})
 
         elif action == 'add_item':
-            item_form = ShoppingItemsForm()  # Already instantiated, but kept for POST consistency
+            item_form = ShoppingItemsForm()
             if item_form.validate_on_submit():
                 try:
                     with db.client.start_session() as mongo_session:
@@ -966,14 +958,15 @@ def edit_list(list_id):
                                 'created_at': datetime.utcnow(),
                                 'updated_at': datetime.utcnow()
                             }
-                            # Check for duplicate item names
-                            existing_items = db.shopping_items.find({'list_id': str(list_id), 'name': new_item_data['name'].lower()}, session=mongo_session)
-                            if existing_items.count() > 0:
+                            existing_items = db.shopping_items.count_documents(
+                                {'list_id': str(list_id), 'name': {'$regex': f'^{new_item_data["name"].lower()}$', '$options': 'i'}},
+                                session=mongo_session
+                            )
+                            if existing_items > 0:
                                 flash(trans('shopping_duplicate_item_name', default='Item name already exists in this list.'), 'danger')
                                 return redirect(url_for('shopping.edit_list', list_id=list_id))
                             
                             created_item_id = create_shopping_item(db, new_item_data, mongo_session)
-                            # Update total_spent
                             list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
                             total_spent = sum(item['price'] * item['quantity'] for item in list_items)
                             db.shopping_lists.update_one(
@@ -992,6 +985,9 @@ def edit_list(list_id):
                 except Exception as e:
                     logger.error(f"Unexpected error adding item to list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
                     flash(trans('shopping_item_error', default=f'Error adding item: {str(e)}'), 'danger')
+            else:
+                form_errors = {field: [trans(error, default=error) for error in field_errors] for field, field_errors in item_form.errors.items()}
+                logger.debug(f"Item form validation failed: {form_errors}", extra={'session_id': session_id})
 
         elif action == 'update_item':
             item_id = request.form.get('item_id')
@@ -1003,6 +999,10 @@ def edit_list(list_id):
                 try:
                     with db.client.start_session() as mongo_session:
                         with mongo_session.start_transaction():
+                            existing_item = db.shopping_items.find_one({'_id': ObjectId(item_id), 'list_id': str(list_id)}, session=mongo_session)
+                            if not existing_item:
+                                flash(trans('shopping_item_not_found', default='Item not found.'), 'danger')
+                                return redirect(url_for('shopping.edit_list', list_id=list_id))
                             updated_item_data = {
                                 'name': item_form.name.data.strip(),
                                 'quantity': int(item_form.quantity.data),
@@ -1014,13 +1014,19 @@ def edit_list(list_id):
                                 'frequency': int(item_form.frequency.data),
                                 'updated_at': datetime.utcnow()
                             }
+                            existing_items = db.shopping_items.count_documents(
+                                {'list_id': str(list_id), 'name': {'$regex': f'^{updated_item_data["name"].lower()}$', '$options': 'i'}, '_id': {'$ne': ObjectId(item_id)}},
+                                session=mongo_session
+                            )
+                            if existing_items > 0:
+                                flash(trans('shopping_duplicate_item_name', default='Item name already exists in this list.'), 'danger')
+                                return redirect(url_for('shopping.edit_list', list_id=list_id))
                             result = db.shopping_items.update_one(
                                 {'_id': ObjectId(item_id), 'list_id': str(list_id), **filter_criteria},
                                 {'$set': updated_item_data},
                                 session=mongo_session
                             )
                             if result.modified_count > 0:
-                                # Update total_spent
                                 list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
                                 total_spent = sum(item['price'] * item['quantity'] for item in list_items)
                                 db.shopping_lists.update_one(
@@ -1041,6 +1047,9 @@ def edit_list(list_id):
                 except Exception as e:
                     logger.error(f"Unexpected error updating item {item_id} in list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
                     flash(trans('shopping_item_error', default=f'Error updating item: {str(e)}'), 'danger')
+            else:
+                form_errors = {field: [trans(error, default=error) for error in field_errors] for field, field_errors in item_form.errors.items()}
+                logger.debug(f"Item update form validation failed: {form_errors}", extra={'session_id': session_id})
 
         elif action == 'delete_item':
             item_id = request.form.get('item_id')
@@ -1055,7 +1064,6 @@ def edit_list(list_id):
                             session=mongo_session
                         )
                         if result.deleted_count > 0:
-                            # Update total_spent
                             list_items = list(db.shopping_items.find({'list_id': str(list_id)}, session=mongo_session))
                             total_spent = sum(item['price'] * item['quantity'] for item in list_items)
                             db.shopping_lists.update_one(
@@ -1075,10 +1083,24 @@ def edit_list(list_id):
                 logger.error(f"Unexpected error deleting item {item_id} from list {list_id}: {str(e)}", exc_info=True, extra={'session_id': session_id})
                 flash(trans('shopping_item_error', default=f'Error deleting item: {str(e)}'), 'danger')
 
+        # Re-render the template with form errors if validation failed
+        return render_template(
+            'shopping/edit_list.html',
+            form=list_form,
+            list_form=list_form,
+            item_form=item_form,
+            list_id=list_id,
+            shopping_list=shopping_list,
+            items=items,
+            total_cost=total_cost,
+            tool_title=trans('shopping_edit_list', default='Edit Shopping List')
+        )
+
     return render_template(
         'shopping/edit_list.html',
+        form=list_form,
         list_form=list_form,
-        item_form=item_form,  # Add item_form to the template context
+        item_form=item_form,
         list_id=list_id,
         shopping_list=shopping_list,
         items=items,
@@ -1122,7 +1144,6 @@ def toggle_item_status():
                     session=mongo_session
                 )
                 if result.modified_count > 0:
-                    # Update total_spent for the list
                     list_items = list(db.shopping_items.find({'list_id': item['list_id']}, session=mongo_session))
                     total_spent = sum(item['price'] * item['quantity'] for item in list_items)
                     db.shopping_lists.update_one(
@@ -1164,18 +1185,14 @@ def delete_list():
         if not shopping_list:
             return jsonify({'success': False, 'error': trans('shopping_list_not_found', default='List not found.')}), 404
         
-        # Delete all items in the list first
         db.shopping_items.delete_many({'list_id': list_id})
         
-        # Delete the list
         result = db.shopping_lists.delete_one({'_id': ObjectId(list_id)})
         
         if result.deleted_count > 0:
-            # Deduct FC for delete operation (new rule: only delete and PDF export cost credits)
             if current_user.is_authenticated and not is_admin():
                 if not deduct_ficore_credits(db, current_user.id, 1, 'delete_shopping_list', list_id):
                     logger.warning(f"Failed to deduct FC for deleting list {list_id} by user {current_user.id}", extra={'session_id': session.get('sid', 'no-session-id')})
-                    # Don't fail the operation if credit deduction fails - list is already deleted
             
             try:
                 log_tool_usage(
@@ -1211,7 +1228,6 @@ def export_pdf(list_id):
             flash(trans('shopping_invalid_list_id', default='Invalid list ID.'), 'danger')
             return redirect(url_for('shopping.manage'))
         
-        # Check FC balance before generating PDF
         if current_user.is_authenticated and not is_admin():
             if not check_ficore_credit_balance(required_amount=2, user_id=current_user.id):
                 flash(trans('shopping_insufficient_credits_pdf', default='Insufficient credits for PDF export. PDF export costs 2 FC.'), 'danger')
@@ -1226,19 +1242,15 @@ def export_pdf(list_id):
         
         list_items = list(db.shopping_items.find({'list_id': list_id}))
         
-        # Generate PDF
         buffer = BytesIO()
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
         
-        # Draw header
         draw_ficore_pdf_header(p, current_user, y_start=height - 50)
         
-        # Title
         p.setFont("Helvetica-Bold", 16)
         p.drawString(50, height - 120, f"Shopping List: {shopping_list.get('name', 'Untitled')}")
         
-        # List details
         p.setFont("Helvetica", 12)
         y = height - 150
         p.drawString(50, y, f"Budget: {format_currency(shopping_list.get('budget', 0))}")
@@ -1248,7 +1260,6 @@ def export_pdf(list_id):
         p.drawString(50, y, f"Created: {format_date(shopping_list.get('created_at'))}")
         y -= 40
         
-        # Items table header
         p.setFont("Helvetica-Bold", 10)
         p.drawString(50, y, "Item")
         p.drawString(200, y, "Qty")
@@ -1258,14 +1269,12 @@ def export_pdf(list_id):
         p.drawString(450, y, "Status")
         y -= 20
         
-        # Items
         p.setFont("Helvetica", 9)
         for item in list_items:
-            if y < 50:  # New page if needed
+            if y < 50:
                 p.showPage()
                 draw_ficore_pdf_header(p, current_user, y_start=height - 50)
                 y = height - 120
-                # Redraw header
                 p.setFont("Helvetica-Bold", 10)
                 p.drawString(50, y, "Item")
                 p.drawString(200, y, "Qty")
@@ -1287,7 +1296,6 @@ def export_pdf(list_id):
         p.save()
         buffer.seek(0)
         
-        # Deduct FC for PDF export (new rule: only delete and PDF export cost credits)
         if current_user.is_authenticated and not is_admin():
             if not deduct_ficore_credits(db, current_user.id, 2, 'export_shopping_list_pdf', list_id):
                 flash(trans('shopping_credit_deduction_failed', default='Failed to deduct credits for PDF export.'), 'danger')
