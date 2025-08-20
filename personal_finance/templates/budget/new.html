@@ -18,7 +18,7 @@
     <div class="row">
         <div class="col-lg-8">
             <form method="POST" action="{{ url_for('budget.new') }}" id="budgetForm" class="validate-form">
-                {{ form.hidden_tag() }} <!-- Updated to use hidden_tag() for CSRF token -->
+                {{ form.csrf_token }} <!-- CSRF token included -->
                 <input type="hidden" name="action" value="create_budget">
 
                 <div class="card mb-4">
@@ -29,7 +29,13 @@
                         <div class="mb-3">
                             <label for="{{ form.income.id }}" class="form-label">{{ t('budget_monthly_income', default='Monthly Income') }}</label>
                             {{ form.income(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="500000.00", required=True, value=form.income.data or '') }}
-                            <div class="invalid-feedback">{{ t('budget_income_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                            {% if form.income.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.income.errors %}
+                                        {{ t(error, default=error) }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                             <small id="income_help" class="form-text text-muted">{{ t('budget_income_help', default='Enter your monthly income (e.g., 500000.00)') }}</small>
                         </div>
                     </div>
@@ -44,13 +50,25 @@
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.housing.id }}" class="form-label">{{ t('budget_housing_rent', default='Housing/Rent') }}</label>
                                 {{ form.housing(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="100000.00", required=True, value=form.housing.data or '') }}
-                                <div class="invalid-feedback">{{ t('budget_housing_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                {% if form.housing.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.housing.errors %}
+                                            {{ t(error, default=error) }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <small id="housing_help" class="form-text text-muted">{{ t('budget_housing_help', default='Enter housing cost (e.g., 100000.00)') }}</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.food.id }}" class="form-label">{{ t('budget_food', default='Food') }}</label>
                                 {{ form.food(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="50000.00", required=True, value=form.food.data or '') }}
-                                <div class="invalid-feedback">{{ t('budget_food_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                {% if form.food.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.food.errors %}
+                                            {{ t(error, default=error) }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <small id="food_help" class="form-text text-muted">{{ t('budget_food_help', default='Enter food cost (e.g., 50000.00)') }}</small>
                             </div>
                         </div>
@@ -58,13 +76,25 @@
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.transport.id }}" class="form-label">{{ t('budget_transport', default='Transport') }}</label>
                                 {{ form.transport(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="20000.00", required=True, value=form.transport.data or '') }}
-                                <div class="invalid-feedback">{{ t('budget_transport_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                {% if form.transport.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.transport.errors %}
+                                            {{ t(error, default=error) }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <small id="transport_help" class="form-text text-muted">{{ t('budget_transport_help', default='Enter transport cost (e.g., 20000.00)') }}</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.dependents.id }}" class="form-label">{{ t('budget_dependents_support', default='Dependents Support') }}</label>
                                 {{ form.dependents(class="form-control", type="number", min="0", max="100", step="1", placeholder="3", required=True, value=form.dependents.data or '') }}
-                                <div class="invalid-feedback">{{ t('budget_dependents_invalid', default='Please enter a valid integer between 0 and 100') }}</div>
+                                {% if form.dependents.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.dependents.errors %}
+                                            {{ t(error, default=error) }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <small id="dependents_help" class="form-text text-muted">{{ t('budget_dependents_help', default='Enter number of dependents (e.g., 3)') }}</small>
                             </div>
                         </div>
@@ -72,13 +102,25 @@
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.miscellaneous.id }}" class="form-label">{{ t('budget_miscellaneous', default='Miscellaneous') }}</label>
                                 {{ form.miscellaneous(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", required=True, value=form.miscellaneous.data or '') }}
-                                <div class="invalid-feedback">{{ t('budget_miscellaneous_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                {% if form.miscellaneous.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.miscellaneous.errors %}
+                                            {{ t(error, default=error) }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <small id="miscellaneous_help" class="form-text text-muted">{{ t('budget_miscellaneous_help', default='Enter miscellaneous cost (e.g., 10000.00)') }}</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.others.id }}" class="form-label">{{ t('budget_others', default='Others') }}</label>
                                 {{ form.others(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="15000.00", required=True, value=form.others.data or '') }}
-                                <div class="invalid-feedback">{{ t('budget_others_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                {% if form.others.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.others.errors %}
+                                            {{ t(error, default=error) }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <small id="others_help" class="form-text text-muted">{{ t('budget_others_help', default='Enter other expenses (e.g., 15000.00)') }}</small>
                             </div>
                         </div>
@@ -87,17 +129,29 @@
                         <div class="custom-categories-container mb-3">
                             <h6 class="mt-3">{{ t('budget_custom_categories', default='Custom Categories') }}</h6>
                             <div id="custom-categories">
-                                {% for category in form.custom_categories %}
+                                {% for category in form.custom_categories.entries %}
                                     <div class="custom-category-entry row mb-2" data-index="{{ loop.index0 }}">
                                         <div class="col-md-5">
                                             <label for="{{ category.name.id }}" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
-                                            {{ category.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), required=True, value=category.name.data or '') }}
-                                            <div class="invalid-feedback">{{ t('budget_custom_category_name_invalid', default='Please enter a valid category name (max 50 characters)') }}</div>
+                                            {{ category.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), value=category.name.data or '') }}
+                                            {% if category.name.errors %}
+                                                <div class="invalid-feedback d-block">
+                                                    {% for error in category.name.errors %}
+                                                        {{ t(error, default=error) }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
                                         </div>
                                         <div class="col-md-5">
                                             <label for="{{ category.amount.id }}" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
-                                            {{ category.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", required=True, value=category.amount.data or '') }}
-                                            <div class="invalid-feedback">{{ t('budget_custom_category_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                            {{ category.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", value=category.amount.data or '') }}
+                                            {% if category.amount.errors %}
+                                                <div class="invalid-feedback d-block">
+                                                    {% for error in category.amount.errors %}
+                                                        {{ t(error, default=error) }}
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
                                         </div>
                                         <div class="col-md-2 d-flex align-items-end">
                                             <button type="button" class="btn btn-danger btn-sm remove-category"><i class="fas fa-trash"></i></button>
@@ -127,7 +181,13 @@
                         <div class="mb-3">
                             <label for="{{ form.savings_goal.id }}" class="form-label">{{ t('budget_savings_goal', default='Monthly Savings Goal') }}</label>
                             {{ form.savings_goal(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="50000.00", required=True, value=form.savings_goal.data or '') }}
-                            <div class="invalid-feedback">{{ t('budget_savings_goal_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                            {% if form.savings_goal.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.savings_goal.errors %}
+                                        {{ t(error, default=error) }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                             <small id="savings_goal_help" class="form-text text-muted">{{ t('budget_savings_goal_help', default='Enter your monthly savings goal (e.g., 50000.00)') }}</small>
                         </div>
                     </div>
@@ -195,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('budgetForm');
     const customCategoriesContainer = document.getElementById('custom-categories');
     const addCategoryButton = document.querySelector('.add-custom-category');
-    let categoryIndex = {{ form.custom_categories|length }};
+    let categoryIndex = {{ form.custom_categories.entries|length }};
 
     // Template for new custom category
     function createCustomCategoryTemplate(index) {
@@ -203,12 +263,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="custom-category-entry row mb-2" data-index="${index}">
                 <div class="col-md-5">
                     <label for="custom_categories-${index}-name" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
-                    <input type="text" class="form-control" name="custom_categories-${index}-name" id="custom_categories-${index}-name" maxlength="50" placeholder="{{ t('budget_custom_category_placeholder', default='e.g., Vet Bill') }}" required>
+                    <input type="text" class="form-control" name="custom_categories-${index}-name" id="custom_categories-${index}-name" maxlength="50" placeholder="{{ t('budget_custom_category_placeholder', default='e.g., Vet Bill') }}">
                     <div class="invalid-feedback">{{ t('budget_custom_category_name_invalid', default='Please enter a valid category name (max 50 characters)') }}</div>
                 </div>
                 <div class="col-md-5">
                     <label for="custom_categories-${index}-amount" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
-                    <input type="number" class="form-control" name="custom_categories-${index}-amount" id="custom_categories-${index}-amount" min="0" max="10000000000" step="0.01" placeholder="10000.00" required>
+                    <input type="number" class="form-control" name="custom_categories-${index}-amount" id="custom_categories-${index}-amount" min="0" max="10000000000" step="0.01" placeholder="10000.00">
                     <div class="invalid-feedback">{{ t('budget_custom_category_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
@@ -220,13 +280,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add new custom category
     addCategoryButton.addEventListener('click', function() {
-        if (categoryIndex < 20) { // Match max_entries from BudgetForm
+        if (categoryIndex < 10) { // Limit to 10 categories as specified
             customCategoriesContainer.insertAdjacentHTML('beforeend', createCustomCategoryTemplate(categoryIndex));
             categoryIndex++;
             attachRemoveEventListeners();
             updateValidation();
         } else {
-            alert('{{ t('budget_max_custom_categories', default='Maximum of 20 custom categories allowed') }}');
+            alert('{{ t('budget_max_custom_categories', default='Maximum of 10 custom categories allowed') }}');
         }
     });
 
