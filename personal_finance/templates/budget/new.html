@@ -82,6 +82,40 @@
                                 <small id="others_help" class="form-text text-muted">{{ t('budget_others_help', default='Enter other expenses (e.g., 15000.00)') }}</small>
                             </div>
                         </div>
+
+                        <!-- Custom Categories Section -->
+                        <div class="custom-categories-container mb-3">
+                            <h6 class="mt-3">{{ t('budget_custom_categories', default='Custom Categories') }}</h6>
+                            <div id="custom-categories">
+                                {% for custom_category in form.custom_categories %}
+                                    <div class="custom-category-entry row mb-2" data-index="{{ loop.index0 }}">
+                                        <div class="col-md-5">
+                                            <label for="{{ custom_category.name.id }}" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
+                                            {{ custom_category.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), required=True) }}
+                                            <div class="invalid-feedback">{{ t('budget_custom_category_name_invalid', default='Please enter a valid category name (max 50 characters)') }}</div>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label for="{{ custom_category.amount.id }}" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
+                                            {{ custom_category.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", required=True) }}
+                                            <div class="invalid-feedback">{{ t('budget_custom_category_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                                        </div>
+                                        <div class="col-md-2 d-flex align-items-end">
+                                            <button type="button" class="btn btn-danger btn-sm remove-category"><i class="fas fa-trash"></i></button>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <button type="button" class="btn btn-outline-primary mt-2 add-custom-category">
+                                <i class="fas fa-plus me-2"></i>{{ t('budget_add_custom_category', default='Add Custom Category') }}
+                            </button>
+                            {% if form.custom_categories.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.custom_categories.errors %}
+                                        {{ t(error, default=error) }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 
@@ -158,8 +192,72 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Simple form validation using HTML5 native validation
     const form = document.getElementById('budgetForm');
+    const customCategoriesContainer = document.getElementById('custom-categories');
+    const addCategoryButton = document.querySelector('.add-custom-category');
+    let categoryIndex = {{ form.custom_categories|length }};
+
+    // Template for new custom category
+    function createCustomCategoryTemplate(index) {
+        return `
+            <div class="custom-category-entry row mb-2" data-index="${index}">
+                <div class="col-md-5">
+                    <label for="custom_categories-${index}-name" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
+                    <input type="text" class="form-control" name="custom_categories-${index}-name" id="custom_categories-${index}-name" maxlength="50" placeholder="{{ t('budget_custom_category_placeholder', default='e.g., Vet Bill') }}" required>
+                    <div class="invalid-feedback">{{ t('budget_custom_category_name_invalid', default='Please enter a valid category name (max 50 characters)') }}</div>
+                </div>
+                <div class="col-md-5">
+                    <label for="custom_categories-${index}-amount" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
+                    <input type="number" class="form-control" name="custom_categories-${index}-amount" id="custom_categories-${index}-amount" min="0" max="10000000000" step="0.01" placeholder="10000.00" required>
+                    <div class="invalid-feedback">{{ t('budget_custom_category_amount_invalid', default='Please enter a valid number between 0 and 10 billion') }}</div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-category"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Add new custom category
+    addCategoryButton.addEventListener('click', function() {
+        if (categoryIndex < 20) { // Match max_entries from BudgetForm
+            customCategoriesContainer.insertAdjacentHTML('beforeend', createCustomCategoryTemplate(categoryIndex));
+            categoryIndex++;
+            attachRemoveEventListeners();
+            updateValidation();
+        } else {
+            alert('{{ t('budget_max_custom_categories', default='Maximum of 20 custom categories allowed') }}');
+        }
+    });
+
+    // Attach remove event listeners to all remove buttons
+    function attachRemoveEventListeners() {
+        const removeButtons = document.querySelectorAll('.remove-category');
+        removeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const entry = this.closest('.custom-category-entry');
+                entry.remove();
+            });
+        });
+    }
+
+    // Real-time validation for all inputs
+    function updateValidation() {
+        const inputs = form.querySelectorAll('input[type="number"], input[type="text"]');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                if (this.checkValidity()) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                }
+            });
+        });
+    }
+
+    // Form submission validation
     if (form) {
         form.addEventListener('submit', function(e) {
             if (!form.checkValidity()) {
@@ -175,20 +273,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             form.classList.add('was-validated');
         });
-        
-        // Add real-time validation feedback
-        const inputs = form.querySelectorAll('input[type="number"]');
-        inputs.forEach(input => {
-            input.addEventListener('input', function() {
-                if (this.checkValidity()) {
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
-                } else {
-                    this.classList.remove('is-valid');
-                    this.classList.add('is-invalid');
-                }
-            });
-        });
+
+        // Initial validation setup
+        updateValidation();
+        attachRemoveEventListeners();
     }
 });
 </script>
