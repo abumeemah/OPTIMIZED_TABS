@@ -517,17 +517,17 @@
         padding: 1.5rem;
     }
 }
-/* Breadcrumb Styling */
+/* === Breadcrumb Styling === */
 .breadcrumb {
     background-color: transparent;
     padding: 0.75rem 1rem;
     margin-bottom: 1rem;
     font-size: 0.95rem;
-    border-bottom: 1px solid #E5E7EB; /* optional separator */
+    border-bottom: 1px solid #E5E7EB;
 }
 
 .breadcrumb-item {
-    color: #1E3A8A; /* Deep Blue */
+    color: #1E3A8A;
 }
 
 .breadcrumb-item a {
@@ -540,51 +540,53 @@
 }
 
 .breadcrumb-item.active {
-    color: #6B7280; /* Muted Gray for current page */
+    color: #6B7280;
     font-weight: 500;
 }
 
 .breadcrumb-fix {
     overflow-x: hidden;
 }
-/* Tool Header Styling */
+
+/* === Tool Header Styling === */
 .tool-header {
     background: linear-gradient(135deg, #1E3A8A 0%, #D4AF37 100%);
     color: white;
     padding: 1rem 0;
     border-radius: 0.5rem;
     margin-bottom: 1.5rem;
+    text-align: center;
 }
 
-/* Breadcrumb Styling */
 .tool-header .breadcrumb {
     background-color: transparent;
     padding: 0.75rem 1rem;
     margin-bottom: 0;
     font-size: 0.95rem;
     border-bottom: none;
+    justify-content: center;
 }
 
-.tool-header .breadcrumb-item {
-    color: rgba(255, 255, 255, 0.85);
-}
-
+.tool-header .breadcrumb-item,
 .tool-header .breadcrumb-item a {
     color: rgba(255, 255, 255, 0.85);
-    text-decoration: none;
 }
 
-.tool-header .breadcrumb-item a:hover {
-    color: #FFFFFF;
-    text-decoration: underline;
-}
-
+.tool-header .breadcrumb-item a:hover,
 .tool-header .breadcrumb-item.active {
-    color: #FFFFFF;
+color: #FFFFFF;
     font-weight: 600;
 }
 
-/* Button Group inside Header */
+/* === Tool Header Buttons (Icons) === */
+.tool-header .btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
 .tool-header .btn-outline-primary {
     border-color: rgba(255, 255, 255, 0.3);
     color: rgba(255, 255, 255, 0.85);
@@ -597,18 +599,14 @@
     border-color: rgba(255, 255, 255, 0.6);
     color: #FFFFFF;
 }
-/* Responsive fix */
+
 @media (max-width: 768px) {
     .tool-header .btn-group {
         flex-wrap: wrap;
+        justify-content: center;
     }
 
     .tool-header .btn-sm {
         margin: 0.1rem;
     }
-}
-
-/* Breadcrumb overflow fix */
-.breadcrumb-fix {
-    overflow-x: hidden;
 }
