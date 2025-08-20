@@ -358,7 +358,7 @@ function loadRecentActivity() {
                 </div>
             `;
 
-            limitedList.innerHTML = validActivities.length > 0 ? validActivities.slice(0, 2).map(renderActivity).join('') : `
+            limitedList.innerHTML = validActivities.length > 0 ? validActivities.map(renderActivity).join('') : `
                 <div class="personal-recent-activity-item personal-no-activity">
                     <div class="personal-activity-icon-wrapper">
                         <i class="bi bi-info-circle text-muted"></i>
