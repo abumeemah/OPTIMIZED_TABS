@@ -429,13 +429,14 @@ def create_bill_reminder(db, reminder_data):
                      exc_info=True, extra={'session_id': reminder_data.get('session_id', 'no-session-id')})
         raise
 
-def create_shopping_item(db, item_data):
+def create_shopping_item(db, item_data, mongo_session=None):
     """
     Create a new shopping item in the shopping_items collection.
     
     Args:
         db: MongoDB database instance
         item_data: Dictionary containing shopping item information
+        mongo_session: Optional MongoDB session for transaction handling
     
     Returns:
         str: ID of the created shopping item
@@ -447,7 +448,7 @@ def create_shopping_item(db, item_data):
         item_data['unit'] = item_data.get('unit', 'piece')
         if 'session_id' in item_data and item_data['session_id']:
             item_data['session_id'] = str(item_data['session_id'])  # Ensure session_id is a string if provided
-        result = db.shopping_items.insert_one(item_data)
+        result = db.shopping_items.insert_one(item_data, session=mongo_session)
         logger.info(f"{trans('general_shopping_item_created', default='Created shopping item with ID')}: {result.inserted_id}", 
                    extra={'session_id': item_data.get('session_id', 'no-session-id')})
         return str(result.inserted_id)
@@ -459,7 +460,7 @@ def create_shopping_item(db, item_data):
         logger.error(f"{trans('general_shopping_item_creation_error', default='Error creating shopping item')}: {str(e)}", 
                      exc_info=True, extra={'session_id': item_data.get('session_id', 'no-session-id')})
         raise
-
+        
 def get_shopping_items(db, filter_kwargs):
     """
     Retrieve shopping item records based on filter criteria.
