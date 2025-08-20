@@ -324,7 +324,7 @@ GENERAL_TRANSLATIONS = {
         'special_announcement_description': 'Description of the special announcement.',
         'learn_more': 'Learn More',
         'general_mobile_navigation': 'Mobile Navigation',
-        'profile_settings': 'Profile Settings',
+        'profile_settings': 'Settings',
         'not_found': 'Not Found',
         'general_page_not_found': 'Page Not Found',
         'general_page_not_found_message': 'The page you are looking for does not exist.',
