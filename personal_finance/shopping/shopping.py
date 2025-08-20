@@ -46,6 +46,18 @@ def auto_categorize_item(item_name):
             return category
     return 'other'
 
+def clean_currency(value):
+    """Clean and convert currency input to float, handling empty or invalid inputs."""
+    if value is None or value == '':
+        logger.debug("clean_currency received empty or None input, returning 0.0")
+        return 0.0
+    try:
+        cleaned_value = str(value).replace(',', '').replace(' ', '')
+        return round(float(cleaned_value), 2)
+    except (ValueError, TypeError) as e:
+        logger.error(f"clean_currency failed with input {value}: {str(e)}")
+        raise ValidationError(trans('shopping_price_invalid', default='Invalid price format'))
+
 def deduct_ficore_credits(db, user_id, amount, action, item_id=None, mongo_session=None):
     """
     Deduct Ficore Credits from user balance with enhanced error logging and transaction handling.
@@ -308,7 +320,8 @@ class ShoppingItemsForm(FlaskForm):
         choices=[
             ('to_buy', trans('shopping_status_to_buy', default='To Buy')),
             ('bought', trans('shopping_status_bought', default='Bought'))
-        ]
+        ],
+        validators=[DataRequired(message=trans('shopping_status_required', default='Status is required'))]
     )
     frequency = IntegerField(
         trans('shopping_frequency', default='Frequency (days)'),
@@ -331,6 +344,12 @@ class ShoppingItemsForm(FlaskForm):
         self.status.label.text = trans('shopping_status', lang) or 'Status'
         self.frequency.label.text = trans('shopping_frequency', lang) or 'Frequency (days)'
         self.submit.label.text = trans('shopping_item_submit', lang) or 'Add Item'
+
+    def validate_status(self, status):
+        valid_choices = ['to_buy', 'bought']
+        if status.data not in valid_choices:
+            logger.debug(f"Invalid status value submitted: {status.data}", extra={'session_id': session.get('sid', 'no-session-id')})
+            raise ValidationError(trans('shopping_status_invalid', default='Not a valid status choice.'))
 
 class ShareListForm(FlaskForm):
     email = StringField(
@@ -575,7 +594,7 @@ def new():
                                     'updated_at': datetime.utcnow()
                                 }
                                 logger.debug(f"Creating shopping item: {new_item_data}", extra={'session_id': session_id})
-                                created_item_id = create_shopping_item(db, new_item_data)
+                                created_item_id = create_shopping_item(db, new_item_data, mongo_session)
                                 added += 1
                                 existing_names.add(item_data['name'].lower())
                             except ValueError as e:
@@ -958,6 +977,7 @@ def edit_list(list_id):
                                 'created_at': datetime.utcnow(),
                                 'updated_at': datetime.utcnow()
                             }
+                            logger.debug(f"Creating shopping item: {new_item_data}", extra={'session_id': session_id})
                             existing_items = db.shopping_items.count_documents(
                                 {'list_id': str(list_id), 'name': {'$regex': f'^{new_item_data["name"].lower()}$', '$options': 'i'}},
                                 session=mongo_session
@@ -1014,6 +1034,7 @@ def edit_list(list_id):
                                 'frequency': int(item_form.frequency.data),
                                 'updated_at': datetime.utcnow()
                             }
+                            logger.debug(f"Updating shopping item {item_id}: {updated_item_data}", extra={'session_id': session_id})
                             existing_items = db.shopping_items.count_documents(
                                 {'list_id': str(list_id), 'name': {'$regex': f'^{updated_item_data["name"].lower()}$', '$options': 'i'}, '_id': {'$ne': ObjectId(item_id)}},
                                 session=mongo_session
