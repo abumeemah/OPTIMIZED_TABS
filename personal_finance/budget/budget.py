@@ -378,10 +378,6 @@ def new():
     try:
         filter_criteria = {} if utils.is_admin() else {'user_id': current_user.id}
         if request.method == 'POST':
-            # Validate CSRF token
-            try:
-                csrf.validate_csrf(form.csrf_token.data)
-            except CSRFError as e:
                 current_app.logger.error(f"CSRF validation failed: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
                 flash(trans('budget_csrf_error', default='Invalid CSRF token. Please try again.'), 'danger')
                 return render_template(
@@ -1221,3 +1217,8 @@ def delete_budget():
     except Exception as e:
         logger.error(f"Error deleting budget: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
         return jsonify({'success': False, 'error': trans('budget_delete_error', default='Error deleting budget.')}), 500
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    flash(trans('budget_csrf_error', default='Invalid CSRF token. Please try again.'), 'danger')
+    return redirect(url_for('budget.new')), 400
