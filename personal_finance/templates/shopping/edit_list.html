@@ -4,11 +4,28 @@
 {% endblock %}
 
 {% block content %}
+<!-- CSRF Token for AJAX -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <div class="container mt-4">
     {% set tool_name = 'shopping_edit_list' %}
     {% set tool_icon = 'fa-edit' %}
     {% set subtitle = t('shopping_edit_description', default='Edit your shopping list and manage items') %}
     {% include 'tool_header.html' %}
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="alert-container mb-4">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
 
     <!-- Navigation Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4">
@@ -192,7 +209,7 @@
                                             <td>{{ item.store }}</td>
                                             <td>
                                                 <button type="button" class="btn btn-sm {{ 'btn-success' if item.status == 'bought' else 'btn-outline-secondary' }}" 
-                                                        onclick="toggleItemStatus('{{ item.id }}', '{{ item.status }}')">
+                                                        onclick="toggleItemStatus('{{ item.id }}', '{{ item.status }}')" id="toggle-btn-{{ item.id }}">
                                                     <i class="fas {{ 'fa-check' if item.status == 'bought' else 'fa-shopping-cart' }} me-1"></i>
                                                     {{ t('shopping_status_' + item.status, default=item.status.title()) }}
                                                 </button>
@@ -202,7 +219,7 @@
                                                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="editItem('{{ item.id }}')">
                                                         <i class="fas fa-edit"></i>
                                                     </button>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.id }}', '{{ item.name }}')">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.id }}', '{{ item.name | tojson | safe }}')">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -353,49 +370,60 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function toggleItemStatus(itemId, currentStatus) {
+    const button = document.getElementById(`toggle-btn-${itemId}`);
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {{ t("shopping_updating", default="Updating...") }}';
+
     fetch('/shopping/toggle_item_status', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').getAttribute('content')
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
         body: JSON.stringify({ item_id: itemId })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            setTimeout(() => {
+                location.reload();
+            }, 500); // Brief delay to show success
         } else {
-            alert(data.error || 'Error updating item status');
+            alert(data.error || '{{ t("shopping_status_error", default="Error updating item status") }}');
+            button.innerHTML = originalText;
+            button.disabled = false;
         }
     })
     .catch(error => {
-        alert('Error updating item status');
+        alert('{{ t("shopping_status_error", default="Error updating item status") }}: ' + error.message);
+        button.innerHTML = originalText;
+        button.disabled = false;
     });
 }
 
 function editItem(itemId) {
-    // Find the item data from the items array
-    {% for item in items %}
-        if ('{{ item.id }}' === itemId) {
-            document.getElementById('edit_item_id').value = '{{ item.id }}';
-            document.getElementById('edit_item_name').value = '{{ item.name }}';
-            document.getElementById('edit_item_quantity').value = '{{ item.quantity }}';
-            document.getElementById('edit_item_price').value = '{{ item.price_raw }}';
-            document.getElementById('edit_item_unit').value = '{{ item.unit }}';
-            document.getElementById('edit_item_category').value = '{{ item.category }}';
-            document.getElementById('edit_item_store').value = '{{ item.store }}';
-            document.getElementById('edit_item_frequency').value = '{{ item.frequency }}';
-            document.getElementById('edit_item_status').value = '{{ item.status }}';
-        }
-    {% endfor %}
-    
-    const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
-    modal.show();
+    // Use JSON-safe data to prevent JavaScript errors
+    const items = {{ items | tojson | safe }};
+    const item = items.find(i => i.id === itemId);
+    if (item) {
+        document.getElementById('edit_item_id').value = item.id;
+        document.getElementById('edit_item_name').value = item.name;
+        document.getElementById('edit_item_quantity').value = item.quantity;
+        document.getElementById('edit_item_price').value = item.price_raw;
+        document.getElementById('edit_item_unit').value = item.unit;
+        document.getElementById('edit_item_category').value = item.category;
+        document.getElementById('edit_item_store').value = item.store;
+        document.getElementById('edit_item_frequency').value = item.frequency;
+        document.getElementById('edit_item_status').value = item.status;
+
+        const modal = new bootstrap.Modal(document.getElementById('editItemModal'));
+        modal.show();
+    }
 }
 
 function deleteItem(itemId, itemName) {
-    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteItemName').textContent = JSON.parse(itemName);
     document.getElementById('delete_item_id').value = itemId;
     
     const modal = new bootstrap.Modal(document.getElementById('deleteItemModal'));
