@@ -1,8 +1,8 @@
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, current_app, jsonify, Response
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect, CSRFError
-from wtforms import FloatField, IntegerField, SubmitField
-from wtforms.validators import DataRequired, NumberRange, ValidationError
+from wtforms import FloatField, IntegerField, SubmitField, StringField, FieldList, FormField
+from wtforms.validators import DataRequired, NumberRange, ValidationError, Optional
 from flask_login import current_user, login_required
 import utils
 from utils import logger
@@ -163,6 +163,23 @@ def deduct_ficore_credits(db, user_id, amount, action, budget_id=None):
                     exc_info=True, extra={'session_id': session_id, 'user_id': user_id})
         return False
 
+class CustomCategoryForm(FlaskForm):
+    name = StringField(
+        trans('budget_custom_category_name', default='Category Name'),
+        validators=[
+            DataRequired(message=trans('budget_custom_category_name_required', default='Category name is required')),
+            Length(max=50, message=trans('budget_custom_category_name_length', default='Category name must be 50 characters or less'))
+        ]
+    )
+    amount = FloatField(
+        trans('budget_custom_category_amount', default='Amount'),
+        filters=[strip_commas],
+        validators=[
+            DataRequired(message=trans('budget_custom_category_amount_required', default='Amount is required')),
+            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+        ]
+    )
+
 class CommaSeparatedIntegerField(IntegerField):
     def process_formdata(self, valuelist):
         if valuelist:
@@ -237,6 +254,12 @@ class BudgetForm(FlaskForm):
             NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
         ]
     )
+    custom_categories = FieldList(
+        FormField(CustomCategoryForm),
+        min_entries=0,
+        max_entries=20,
+        validators=[Optional()]
+    )
     submit = SubmitField(trans('budget_submit', default='Submit'))
 
     def __init__(self, *args, **kwargs):
@@ -253,7 +276,16 @@ class BudgetForm(FlaskForm):
         self.submit.label.text = trans('budget_submit', lang) or 'Submit'
 
     def validate(self, extra_validators=None):
-        return super().validate(extra_validators)
+        if not super().validate(extra_validators):
+            return False
+        # Validate unique custom category names
+        category_names = [cat.name.data.lower() for cat in self.custom_categories if cat.name.data]
+        if len(category_names) != len(set(category_names)):
+            self.custom_categories.errors.append(
+                trans('budget_duplicate_category_names', default='Custom category names must be unique')
+            )
+            return False
+        return True
 
 @budget_bp.route('/', methods=['GET'])
 @custom_login_required
@@ -270,7 +302,7 @@ def new():
     if 'sid' not in session:
         session['sid'] = str(uuid.uuid4())
         current_app.logger.debug(f"New session created with sid: {session['sid']}", extra={'session_id': session['sid']})
-    session.permanent = False  # 30-minute timeout
+    session.permanent = False
     session.modified = True
     form = BudgetForm()
     db = utils.get_mongo_db()
@@ -296,7 +328,7 @@ def new():
         activities = utils.get_all_recent_activities(
             db=db,
             user_id=current_user.id,
-            session_id=None,  # No longer using session-based activities
+            session_id=None,
         )
         current_app.logger.debug(f"Fetched {len(activities)} recent activities for {'user ' + str(current_user.id) if current_user.is_authenticated else 'session ' + session.get('sid', 'unknown')}", extra={'session_id': session.get('sid', 'unknown')})
     except Exception as e:
@@ -327,13 +359,18 @@ def new():
                     flash(trans('budget_log_error', default='Error logging budget creation. Continuing with submission.'), 'warning')
 
                 income = form.income.data
+                custom_categories = [
+                    {'name': cat.name.data, 'amount': cat.amount.data}
+                    for cat in form.custom_categories if cat.name.data and cat.amount.data
+                ]
                 expenses = sum([
                     form.housing.data,
                     form.food.data,
                     form.transport.data,
                     float(form.dependents.data),
                     form.miscellaneous.data,
-                    form.others.data
+                    form.others.data,
+                    sum(cat['amount'] for cat in custom_categories)
                 ])
                 savings_goal = form.savings_goal.data
                 surplus_deficit = income - expenses
@@ -354,6 +391,7 @@ def new():
                     'dependents': form.dependents.data,
                     'miscellaneous': form.miscellaneous.data,
                     'others': form.others.data,
+                    'custom_categories': custom_categories,
                     'created_at': datetime.utcnow()
                 }
                 current_app.logger.debug(f"Saving budget data: {budget_data}", extra={'session_id': session['sid']})
@@ -402,6 +440,7 @@ def new():
                             'miscellaneous_raw': 0.0,
                             'others': format_currency(0.0),
                             'others_raw': 0.0,
+                            'custom_categories': [],
                             'created_at': 'N/A'
                         },
                         categories={},
@@ -480,6 +519,7 @@ def new():
                 'miscellaneous_raw': float(budget.get('miscellaneous', 0.0)),
                 'others': format_currency(budget.get('others', 0.0)),
                 'others_raw': float(budget.get('others', 0.0)),
+                'custom_categories': budget.get('custom_categories', []),
                 'created_at': budget.get('created_at').strftime('%Y-%m-%d') if budget.get('created_at') else 'N/A'
             }
             budgets_dict[budget_data['id']] = budget_data
@@ -513,6 +553,7 @@ def new():
                 'miscellaneous_raw': 0.0,
                 'others': format_currency(0.0),
                 'others_raw': 0.0,
+                'custom_categories': [],
                 'created_at': 'N/A'
             }
         categories = {
@@ -521,8 +562,11 @@ def new():
             trans('budget_transport', default='Transport'): latest_budget.get('transport_raw', 0.0),
             trans('budget_dependents_support', default='Dependents Support'): latest_budget.get('dependents_raw', 0),
             trans('budget_miscellaneous', default='Miscellaneous'): latest_budget.get('miscellaneous_raw', 0.0),
-            trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0)
+            trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0),
         }
+        # Add custom categories to the categories dict
+        for cat in latest_budget.get('custom_categories', []):
+            categories[cat['name']] = cat['amount']
         categories = {k: v for k, v in categories.items() if v > 0}
         tips = [
             trans("budget_tip_track_expenses", default='Track your expenses daily to stay within budget.'),
@@ -594,6 +638,7 @@ def new():
                 'miscellaneous_raw': 0.0,
                 'others': format_currency(0.0),
                 'others_raw': 0.0,
+                'custom_categories': [],
                 'created_at': 'N/A'
             },
             categories={},
@@ -674,6 +719,7 @@ def dashboard():
                 'miscellaneous_raw': float(budget.get('miscellaneous', 0.0)),
                 'others': format_currency(budget.get('others', 0.0)),
                 'others_raw': float(budget.get('others', 0.0)),
+                'custom_categories': budget.get('custom_categories', []),
                 'created_at': budget.get('created_at').strftime('%Y-%m-%d') if budget.get('created_at') else 'N/A'
             }
             budgets_dict[budget_data['id']] = budget_data
@@ -708,6 +754,7 @@ def dashboard():
                 'miscellaneous_raw': 0.0,
                 'others': format_currency(0.0),
                 'others_raw': 0.0,
+                'custom_categories': [],
                 'created_at': 'N/A'
             }
 
@@ -719,6 +766,9 @@ def dashboard():
             trans('budget_miscellaneous', default='Miscellaneous'): latest_budget.get('miscellaneous_raw', 0.0),
             trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0)
         }
+        # Add custom categories to the categories dict
+        for cat in latest_budget.get('custom_categories', []):
+            categories[cat['name']] = cat['amount']
         categories = {k: v for k, v in categories.items() if v > 0}
 
         tips = [
@@ -869,6 +919,7 @@ def manage():
                 'miscellaneous_raw': float(budget.get('miscellaneous', 0.0)),
                 'others': format_currency(budget.get('others', 0.0)),
                 'others_raw': float(budget.get('others', 0.0)),
+                'custom_categories': budget.get('custom_categories', []),
                 'created_at': budget.get('created_at').strftime('%Y-%m-%d %H:%M') if budget.get('created_at') else 'N/A'
             }
             budgets_dict[budget_data['id']] = budget_data
@@ -921,12 +972,6 @@ def summary():
             'totalBudget': format_currency(0.0),
             'user_email': current_user.email if current_user.is_authenticated else ''
         }), 500
-
-@budget_bp.errorhandler(CSRFError)
-def handle_csrf_error(e):
-    current_app.logger.error(f"CSRF error on {request.path}: {e.description}", extra={'session_id': session.get('sid', 'unknown')})
-    flash(trans('budget_csrf_error', default='Form submission failed due to a missing security token. Please refresh and try again.'), 'danger')
-    return redirect(request.url), 403
 
 @budget_bp.route('/export_pdf', methods=['GET'])
 @custom_login_required
