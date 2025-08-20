@@ -8,7 +8,7 @@ from datetime import datetime
 from helpers.branding_helpers import draw_ficore_pdf_header
 from bson import ObjectId
 from pymongo import errors
-from utils import get_mongo_db, requires_role, logger, clean_ficore_credit_balance, is_admin, format_date, format_currency
+from utils import get_mongo_db, requires_role, logger, check_ficore_credit_balance, is_admin, format_date, format_currency
 from translations import trans
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
