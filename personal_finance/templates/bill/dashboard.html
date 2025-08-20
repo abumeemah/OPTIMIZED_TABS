@@ -36,6 +36,7 @@
                     <div class="card-body">
                         <h6>{{ trans('bill_pending_count', default='Pending Bills') }}</h6>
                         <h4 class="mb-0">{{ pending_count }}</h4>
+                        <small>{{ trans('bill_total_pending', default='Total') }}: {{ total_pending }}</small>
                     </div>
                 </div>
             </div>
@@ -45,15 +46,6 @@
                         <h6>{{ trans('bill_overdue_count', default='Overdue Bills') }}</h6>
                         <h4 class="mb-0">{{ overdue_count }}</h4>
                         <small>{{ trans('bill_total_overdue', default='Total') }}: {{ total_overdue }}</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3 mb-3">
-                <div class="card bg-info text-white shadow-sm">
-                    <div class="card-body">
-                        <h6>{{ trans('bill_unpaid_count', default='Unpaid Bills') }}</h6>
-                        <h4 class="mb-0">{{ unpaid_count }}</h4>
-                        <small>{{ trans('bill_total_unpaid', default='Total') }}: {{ total_unpaid }}</small>
                     </div>
                 </div>
             </div>
