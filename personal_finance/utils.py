@@ -116,14 +116,6 @@ _PERSONAL_NAV = [
         "icon": "bi-receipt"
     },
     {
-        "endpoint": "shopping.index",
-        "label": "Shopping",
-        "label_key": "shopping_management",
-        "description_key": "shopping_management_desc",
-        "tooltip_key": "shopping_tooltip",
-        "icon": "bi-cart"
-    },
-    {
         "endpoint": "settings.profile",
         "label": "Profile",
         "label_key": "profile_settings",
