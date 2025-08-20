@@ -132,22 +132,22 @@
                                 {% for category in form.custom_categories.entries %}
                                     <div class="custom-category-entry row mb-2" data-index="{{ loop.index0 }}">
                                         <div class="col-md-5">
-                                            <label for="{{ category.name.id }}" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
-                                            {{ category.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), value=category.name.data or '') }}
-                                            {% if category.name.errors %}
+                                            <label for="{{ category.form.name.id }}" class="form-label">{{ t('budget_custom_category_name', default='Category Name') }}</label>
+                                            {{ category.form.name(class="form-control", type="text", maxlength="50", placeholder=t('budget_custom_category_placeholder', default='e.g., Vet Bill'), value=category.form.name.data or '') }}
+                                            {% if category.form.name.errors %}
                                                 <div class="invalid-feedback d-block">
-                                                    {% for error in category.name.errors %}
+                                                    {% for error in category.form.name.errors %}
                                                         {{ t(error, default=error) }}
                                                     {% endfor %}
                                                 </div>
                                             {% endif %}
                                         </div>
                                         <div class="col-md-5">
-                                            <label for="{{ category.amount.id }}" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
-                                            {{ category.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", value=category.amount.data or '') }}
-                                            {% if category.amount.errors %}
+                                            <label for="{{ category.form.amount.id }}" class="form-label">{{ t('budget_custom_category_amount', default='Amount') }}</label>
+                                            {{ category.form.amount(class="form-control", type="number", min="0", max="10000000000", step="0.01", placeholder="10000.00", value=category.form.amount.data or '') }}
+                                            {% if category.form.amount.errors %}
                                                 <div class="invalid-feedback d-block">
-                                                    {% for error in category.amount.errors %}
+                                                    {% for error in category.form.amount.errors %}
                                                         {{ t(error, default=error) }}
                                                     {% endfor %}
                                                 </div>
