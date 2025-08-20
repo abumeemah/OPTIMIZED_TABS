@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, current_app, session, request
 from flask_login import current_user, login_required
 from datetime import datetime, date
 from models import get_budgets, get_bills
-from utils import get_mongo_db, trans, requires_role, logger, is_admin, get_recent_activities
+from utils import get_mongo_db, trans, requires_role, logger, is_admin, get_recent_activities, get_all_recent_activities
 from bson import ObjectId
 
 summaries_bp = Blueprint('summaries', __name__, url_prefix='/summaries')
@@ -26,11 +26,11 @@ def parse_currency(value):
         return 0.0
 
 # --- HELPER FUNCTION ---
-def _get_recent_activities_data(user_id=None, is_admin_user=False, db=None):
+def _get_recent_activities_data(user_id=None, is_admin_user=False, db=None, limit=2):
     """Fetch recent activities across all personal finance tools for a user."""
     if db is None:
         db = get_mongo_db()
-    return get_recent_activities(user_id=user_id, is_admin_user=is_admin_user, db=db, session_id=session.get('sid', 'no-session-id'), limit=2)
+    return get_recent_activities(user_id=user_id, is_admin_user=is_admin_user, db=db, session_id=session.get('sid', 'no-session-id'), limit=limit)
 
 # --- HELPER FUNCTION FOR NOTIFICATIONS ---
 def _get_notifications_data(user_id, is_admin_user, db):
@@ -203,12 +203,30 @@ def recent_activity():
         # Log current_user details for debugging
         logger.info(f"Accessing recent_activity for user_id={current_user.id}, role={getattr(current_user, 'role', 'unknown')}", 
                     extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
-        activities = _get_recent_activities_data(user_id=current_user.id, is_admin_user=getattr(current_user, 'role', None) == 'admin')
+        activities = _get_recent_activities_data(user_id=current_user.id, is_admin_user=getattr(current_user, 'role', None) == 'admin', limit=2)
         logger.info(f"Fetched {len(activities)} recent activities for user {current_user.id}", 
                     extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
         return jsonify(activities), 200
     except Exception as e:
         logger.error(f"Error in summaries.recent_activity: {str(e)}", 
+                     extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
+        return jsonify([]), 200  # Return empty array instead of error to avoid client-side issues
+
+@summaries_bp.route('/all_activities')
+@login_required
+@requires_role(['personal', 'admin'])
+def all_activities():
+    """Return all recent activities (up to 10) across all personal finance tools for the current user."""
+    try:
+        # Log current_user details for debugging
+        logger.info(f"Accessing all_activities for user_id={current_user.id}, role={getattr(current_user, 'role', 'unknown')}", 
+                    extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
+        activities = _get_recent_activities_data(user_id=current_user.id, is_admin_user=getattr(current_user, 'role', None) == 'admin', limit=10)
+        logger.info(f"Fetched {len(activities)} recent activities for user {current_user.id} (all_activities)", 
+                    extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
+        return jsonify(activities), 200
+    except Exception as e:
+        logger.error(f"Error in summaries.all_activities: {str(e)}", 
                      extra={'session_id': session.get('sid', 'no-session-id'), 'ip_address': request.remote_addr})
         return jsonify([]), 200  # Return empty array instead of error to avoid client-side issues
 
