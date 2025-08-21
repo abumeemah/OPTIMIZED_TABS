@@ -1,9 +1,9 @@
 <div class="tool-header mb-4">
     <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-12">
+        <div class="row">
+            <div class="col-12">
                 <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0 d-flex flex-column align-items-center">
+                    <ol class="breadcrumb mb-2">
                         <li class="breadcrumb-item">
                             <a href="{{ url_for('dashboard.index') }}" class="text-decoration-none">
                                 <i class="fas fa-home"></i> {{ t('general_dashboard', default='Dashboard') }}
@@ -13,26 +13,24 @@
                             <span class="text-muted">{{ t('general_personal_finance', default='Personal Finance') }}</span>
                         </li>
                         <li class="breadcrumb-item active" aria-current="page">
-                            {{ tool_title }}
-                        </li>
-                        <li class="breadcrumb-item tool-buttons">
-                            <div class="btn-group" role="group" aria-label="{{ t('general_personal_finance_tools', default='Personal Finance Tools') }}">
-                                <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary btn-sm budget-planner {{ 'active' if request.endpoint == 'budget.index' else '' }}" 
-                                   data-bs-toggle="tooltip" title="{{ t('budget_title', default='Budget Planner') }}">
-                                    <i class="fas fa-calculator"></i>
-                                </a>
-                                <a href="{{ url_for('bill.index') }}" class="btn btn-outline-primary btn-sm bill-manager {{ 'active' if request.endpoint == 'bill.index' else '' }}" 
-                                   data-bs-toggle="tooltip" title="{{ t('bill_title', default='Bill Manager') }}">
-                                    <i class="fas fa-file-invoice"></i>
-                                </a>
-                                <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-primary btn-sm shopping-planner {{ 'active' if request.endpoint == 'shopping.index' else '' }}" 
-                                   data-bs-toggle="tooltip" title="{{ t('shopping_title', default='Shopping List Planner') }}">
-                                    <i class="fas fa-shopping-cart"></i>
-                                </a>
-                            </div>
+                            {{ tool_title | default('Tool') }}
                         </li>
                     </ol>
                 </nav>
+                <div class="btn-group btn-group-sm d-flex justify-content-center gap-2" role="group" aria-label="{{ t('general_personal_finance_tools', default='Personal Finance Tools') }}">
+                    <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary budget-planner {{ 'active' if request.endpoint == 'budget.index' else '' }}" 
+                       data-bs-toggle="tooltip" title="{{ t('budget_title', default='Budget Planner') }}">
+                        <i class="fas fa-calculator"></i>
+                    </a>
+                    <a href="{{ url_for('bill.index') }}" class="btn btn-outline-primary bill-manager {{ 'active' if request.endpoint == 'bill.index' else '' }}" 
+                       data-bs-toggle="tooltip" title="{{ t('bill_title', default='Bill Manager') }}">
+                        <i class="fas fa-file-invoice"></i>
+                    </a>
+                    <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-primary shopping-planner {{ 'active' if request.endpoint == 'shopping.index' else '' }}" 
+                       data-bs-toggle="tooltip" title="{{ t('shopping_title', default='Shopping List Planner') }}">
+                        <i class="fas fa-shopping-cart"></i>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -40,10 +38,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
 });
 </script>
