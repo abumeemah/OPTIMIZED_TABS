@@ -21,8 +21,6 @@ budget_bp = Blueprint(
     url_prefix='/budget'
 )
 
-csrf = CSRFProtect()
-
 def clean_currency(value):
     """Transform input into a float, using improved validation from utils."""
     try:
