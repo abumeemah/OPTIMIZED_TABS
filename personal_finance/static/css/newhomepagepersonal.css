@@ -523,9 +523,9 @@
 /* === Breadcrumb Styling === */
 .breadcrumb {
     background-color: transparent;
-    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.75rem, 3vw, 1rem);
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.5rem, 2vw, 0.75rem);
     margin-bottom: clamp(0.25rem, 1.5vw, 0.5rem);
-    font-size: clamp(0.85rem, 2.5vw, 0.95rem);
+    font-size: clamp(0.7rem, 2vw, 0.85rem);
     border-bottom: 1px solid #E5E7EB;
     flex-wrap: nowrap;
     overflow-x: auto;
