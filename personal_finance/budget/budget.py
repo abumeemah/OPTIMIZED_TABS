@@ -337,11 +337,11 @@ def index():
 @utils.requires_role(['personal', 'admin'])
 @utils.limiter.limit("10 per minute")
 def new():
-    session.permanent = False  # Keep session temporary
-    session_id = session.sid  # Use Flask's built-in session ID
-    current_app.logger.debug(f"Using session ID: {session_id}", extra={'session_id': session_id})
+    session.permanent = False
+    session_id = session.get('sid', str(uuid.uuid4()))
+    session['sid'] = session_id
+    current_app.logger.debug(f"Session data: {session}", extra={'session_id': session_id})
     
-    # Instantiate form with request.form for POST requests to handle nested custom_categories
     form = BudgetForm(formdata=request.form if request.method == 'POST' else None)
     db = utils.get_mongo_db()
 
@@ -377,9 +377,10 @@ def new():
     try:
         filter_criteria = {} if utils.is_admin() else {'user_id': current_user.id}
         if request.method == 'POST':
-            current_app.logger.debug(f"POST form data: {request.form}", extra={'session_id': session_id})
+            current_app.logger.debug(f"POST request.form: {dict(request.form)}", extra={'session_id': session_id})
+            current_app.logger.debug(f"CSRF token in request.form: {'csrf_token' in request.form}", extra={'session_id': session_id})
             if not form.validate_on_submit():
-                current_app.logger.debug(f"Form validation failed: {form.errors}", extra={'session_id': session_id})
+                current_app.logger.debug(f"Form errors: {form.errors}", extra={'session_id': session_id})
                 flash(trans('budget_form_invalid', default='Invalid form data. Please check your inputs.'), 'danger')
                 return render_template(
                     'budget/new.html',
