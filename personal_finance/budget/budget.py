@@ -167,7 +167,7 @@ class CustomCategoryForm(FlaskForm):
         trans('budget_custom_category_name', default='Category Name'),
         validators=[
             DataRequired(message=trans('budget_custom_category_name_required', default='Category name is required')),
-            Length(max=50, message=trans('budget_custom_category_name_length', default='Category name must be 50 characters or less'))
+            Length(min=2, max=50, message=trans('budget_custom_category_name_length', default='Category name must be between 2 and 50 characters'))
         ]
     )
     amount = FloatField(
@@ -175,9 +175,12 @@ class CustomCategoryForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_custom_category_amount_required', default='Amount is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
+    
+    class Meta:
+        csrf = False  # Disable CSRF for subform, as it's handled by the parent BudgetForm
 
 class CommaSeparatedIntegerField(IntegerField):
     def process_formdata(self, valuelist):
@@ -195,7 +198,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_income_required', default='Income is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_income_max', default='Income must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_income_max', default='Income must be between 0.01 and 10 billion'))
         ]
     )
     housing = FloatField(
@@ -203,7 +206,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_housing_required', default='Housing cost is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
     food = FloatField(
@@ -211,7 +214,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_food_required', default='Food cost is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
     transport = FloatField(
@@ -219,7 +222,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_transport_required', default='Transport cost is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
     dependents = CommaSeparatedIntegerField(
@@ -234,7 +237,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_miscellaneous_required', default='Miscellaneous cost is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
     others = FloatField(
@@ -242,7 +245,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_others_required', default='Other expenses are required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
     savings_goal = FloatField(
@@ -250,7 +253,7 @@ class BudgetForm(FlaskForm):
         filters=[strip_commas],
         validators=[
             DataRequired(message=trans('budget_savings_goal_required', default='Savings goal is required')),
-            NumberRange(min=0, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0 and 10 billion'))
+            NumberRange(min=0.01, max=10000000000, message=trans('budget_amount_max', default='Amount must be between 0.01 and 10 billion'))
         ]
     )
     custom_categories = FieldList(
@@ -280,7 +283,7 @@ class BudgetForm(FlaskForm):
             return False
         try:
             # Log custom_categories for debugging
-            logger.debug(f"Validating custom_categories: {[cat.form.data for cat in self.custom_categories.entries if isinstance(cat.form, CustomCategoryForm)]}",
+            logger.debug(f"Validating custom_categories: {[cat.form.data for cat in self.custom_categories.entries]}",
                         extra={'session_id': session.get('sid', 'unknown')})
             # Validate unique custom category names and total amount
             category_names = []
@@ -293,7 +296,7 @@ class BudgetForm(FlaskForm):
                         trans('budget_invalid_category', default='Invalid custom category format')
                     )
                     return False
-                if cat.form.name.data:  # Check if name exists and is valid
+                if cat.form.name.data:
                     category_names.append(cat.form.name.data.lower())
                     total_category_amount += float(cat.form.amount.data or 0.0)
             if len(category_names) != len(set(category_names)):
@@ -513,9 +516,18 @@ def new():
                                     flash(error_message, 'danger')
                                     return redirect(url_for('budget.new'))
                             mongo_session.commit_transaction()
-                    utils.cache.delete_memoized(utils.get_budgets)
+                    try:
+                        caching_ext = current_app.extensions.get('caching')
+                        if caching_ext:
+                            cache = list(caching_ext.values())[0]
+                            cache.delete_memoized(utils.get_budgets)
+                            current_app.logger.debug(f"Cleared cache for get_budgets", extra={'session_id': session_id})
+                        else:
+                            current_app.logger.warning(f"Caching extension not found; skipping cache clear", extra={'session_id': session_id})
+                    except Exception as e:
+                        current_app.logger.warning(f"Failed to clear cache for get_budgets: {str(e)}", extra={'session_id': session_id})
                     current_app.logger.info(f"Budget {created_budget_id} saved successfully to MongoDB for session {session_id}", extra={'session_id': session_id})
-                    success_message = trans("budget_completed_success", default='Budget created successfully!')
+                    success_message = trans("general_budget_created", default='Budget created successfully!')
                     if is_ajax:
                         return jsonify({'success': True, 'budget_id': str(created_budget_id), 'message': success_message}), 200
                     flash(success_message, "success")
@@ -606,7 +618,16 @@ def new():
                                     return jsonify({'success': False, 'message': error_message}), 404
                                 flash(error_message, "danger")
                                 return redirect(url_for('budget.manage'))
-                    utils.cache.delete_memoized(utils.get_budgets)
+                    try:
+                        caching_ext = current_app.extensions.get('caching')
+                        if caching_ext:
+                            cache = list(caching_ext.values())[0]
+                            cache.delete_memoized(utils.get_budgets)
+                            current_app.logger.debug(f"Cleared cache for get_budgets", extra={'session_id': session_id})
+                        else:
+                            current_app.logger.warning(f"Caching extension not found; skipping cache clear", extra={'session_id': session_id})
+                    except Exception as e:
+                        current_app.logger.warning(f"Failed to clear cache for get_budgets: {str(e)}", extra={'session_id': session_id})
                     current_app.logger.info(f"Deleted budget ID {budget_id} for session {session_id}", extra={'session_id': session_id})
                     success_message = trans("budget_deleted_success", default='Budget deleted successfully!')
                     if is_ajax:
@@ -1011,7 +1032,16 @@ def manage():
                             current_app.logger.warning(f"Budget ID {budget_id} not found for session {session['sid']}", extra={'session_id': session['sid']})
                             flash(trans("budget_not_found", default='Budget not found.'), "danger")
                             return redirect(url_for('budget.manage'))
-                utils.cache.delete_memoized(utils.get_budgets)
+                try:
+                    caching_ext = current_app.extensions.get('caching')
+                    if caching_ext:
+                        cache = list(caching_ext.values())[0]
+                        cache.delete_memoized(utils.get_budgets)
+                        current_app.logger.debug(f"Cleared cache for get_budgets", extra={'session_id': session.get('sid', 'unknown')})
+                    else:
+                        current_app.logger.warning(f"Caching extension not found; skipping cache clear", extra={'session_id': session.get('sid', 'unknown')})
+                except Exception as e:
+                    current_app.logger.warning(f"Failed to clear cache for get_budgets: {str(e)}", extra={'session_id': session.get('sid', 'unknown')})
                 current_app.logger.info(f"Deleted budget ID {budget_id} for session {session['sid']}", extra={'session_id': session['sid']})
                 flash(trans("budget_deleted_success", default='Budget deleted successfully!'), "success")
             except Exception as e:
