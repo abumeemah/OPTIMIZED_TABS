@@ -567,7 +567,6 @@
     margin-bottom: 0;
     font-size: 0.95rem;
     border-bottom: none;
-    justify-content: center;
 }
 
 .tool-header .breadcrumb-item,
@@ -583,7 +582,7 @@
 /* === Tool Header Buttons (Icons) === */
 .tool-header .btn-group {
     display: flex;
-    flex-wrap: nowrap;  /* keep buttons in one line */
+    flex-wrap: nowrap;
     justify-content: center;
     gap: 0.5rem;
     margin-top: 0.5rem;
@@ -592,7 +591,7 @@
 .tool-header .btn-group .btn {
     max-width: 120px;   /* limit button max width */
     flex-shrink: 1;     /* allow buttons to shrink */
-    white-space: nowrap; /* prevent text wrap inside buttons */
+    white-space: nowrap; 
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -613,7 +612,6 @@
 @media (max-width: 768px) {
     .tool-header .btn-group {
         flex-wrap: wrap;
-        justify-content: center;
     }
 
     .tool-header .btn-sm {
