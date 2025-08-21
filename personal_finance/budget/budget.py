@@ -350,6 +350,8 @@ def new():
     if active_tab not in valid_tabs:
         active_tab = 'create-budget'
 
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     try:
         log_tool_usage(
             tool_name='budget',
@@ -381,7 +383,10 @@ def new():
             current_app.logger.debug(f"CSRF token in request.form: {'csrf_token' in request.form}", extra={'session_id': session_id})
             if not form.validate_on_submit():
                 current_app.logger.debug(f"Form errors: {form.errors}", extra={'session_id': session_id})
-                flash(trans('budget_form_invalid', default='Invalid form data. Please check your inputs.'), 'danger')
+                error_message = trans('budget_form_invalid', default='Invalid form data. Please check your inputs.')
+                if is_ajax:
+                    return jsonify({'success': False, 'message': error_message, 'errors': form.errors}), 400
+                flash(error_message, 'danger')
                 return render_template(
                     'budget/new.html',
                     form=form,
@@ -429,8 +434,12 @@ def new():
                 if current_user.is_authenticated and not utils.is_admin():
                     if not utils.check_ficore_credit_balance(required_amount=1, user_id=current_user.id):
                         current_app.logger.warning(f"Insufficient Ficore Credits for creating budget by user {current_user.id}", extra={'session_id': session_id})
-                        flash(trans('budget_insufficient_credits', default='Insufficient Ficore Credits to create a budget. Please purchase more credits.'), 'danger')
+                        error_message = trans('budget_insufficient_credits', default='Insufficient Ficore Credits to create a budget. Please purchase more credits.')
+                        if is_ajax:
+                            return jsonify({'success': False, 'message': error_message}), 400
+                        flash(error_message, 'danger')
                         return redirect(url_for('dashboard.index'))
+
                 try:
                     log_tool_usage(
                         tool_name='budget',
@@ -448,10 +457,13 @@ def new():
                 for cat in form.custom_categories.entries:
                     try:
                         if isinstance(cat.form, CustomCategoryForm) and cat.form.name.data and cat.form.amount.data:
+                            current_app.logger.debug(f"Processing custom category: name={cat.form.name.data}, amount={cat.form.amount.data}", extra={'session_id': session_id})
                             custom_categories.append({
                                 'name': bleach.clean(cat.form.name.data),
                                 'amount': float(cat.form.amount.data or 0.0)
                             })
+                        else:
+                            current_app.logger.warning(f"Skipping invalid custom category: {cat.form.data}", extra={'session_id': session_id})
                     except AttributeError as e:
                         current_app.logger.warning(f"Invalid custom category entry: {cat.__dict__}, error: {str(e)}", extra={'session_id': session_id})
                         continue
@@ -493,18 +505,27 @@ def new():
                             created_budget_id = create_budget(db, budget_data)
                             if current_user.is_authenticated and not utils.is_admin():
                                 if not deduct_ficore_credits(db, current_user.id, 1, 'create_budget', budget_id):
-                                    db.budgets.delete_one({'_id': budget_id}, session=mongo_session)  # Rollback on failure
+                                    db.budgets.delete_one({'_id': budget_id}, session=mongo_session)
                                     current_app.logger.error(f"Failed to deduct Ficore Credit for creating budget {budget_id} by user {current_user.id}", extra={'session_id': session_id})
-                                    flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for creating budget.'), 'danger')
+                                    error_message = trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for creating budget.')
+                                    if is_ajax:
+                                        return jsonify({'success': False, 'message': error_message}), 400
+                                    flash(error_message, 'danger')
                                     return redirect(url_for('budget.new'))
                             mongo_session.commit_transaction()
                     utils.cache.delete_memoized(utils.get_budgets)
                     current_app.logger.info(f"Budget {created_budget_id} saved successfully to MongoDB for session {session_id}", extra={'session_id': session_id})
-                    flash(trans("budget_completed_success", default='Budget created successfully!'), "success")
+                    success_message = trans("budget_completed_success", default='Budget created successfully!')
+                    if is_ajax:
+                        return jsonify({'success': True, 'budget_id': str(created_budget_id), 'message': success_message}), 200
+                    flash(success_message, "success")
                     return redirect(url_for('budget.dashboard'))
                 except Exception as e:
                     current_app.logger.error(f"Failed to save budget {budget_id} to MongoDB for session {session_id}: {str(e)}", extra={'session_id': session_id})
-                    flash(trans("budget_storage_error", default='Error saving budget.'), "danger")
+                    error_message = trans("budget_storage_error", default='Error saving budget.')
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': error_message}), 500
+                    flash(error_message, "danger")
                     return render_template(
                         'budget/new.html',
                         form=form,
@@ -551,12 +572,18 @@ def new():
                 budget = db.budgets.find_one({'_id': ObjectId(budget_id), **filter_criteria})
                 if not budget:
                     current_app.logger.warning(f"Budget {budget_id} not found for deletion", extra={'session_id': session_id})
-                    flash(trans("budget_not_found", default='Budget not found.'), "danger")
+                    error_message = trans("budget_not_found", default='Budget not found.')
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': error_message}), 404
+                    flash(error_message, "danger")
                     return redirect(url_for('budget.manage'))
                 if current_user.is_authenticated and not utils.is_admin():
                     if not utils.check_ficore_credit_balance(required_amount=1, user_id=current_user.id):
                         current_app.logger.warning(f"Insufficient Ficore Credits for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session_id})
-                        flash(trans('budget_insufficient_credits', default='Insufficient Ficore Credits to delete a budget. Please purchase more credits.'), 'danger')
+                        error_message = trans('budget_insufficient_credits', default='Insufficient Ficore Credits to delete a budget. Please purchase more credits.')
+                        if is_ajax:
+                            return jsonify({'success': False, 'message': error_message}), 400
+                        flash(error_message, 'danger')
                         return redirect(url_for('dashboard.index'))
                 try:
                     with db.client.start_session() as mongo_session:
@@ -566,20 +593,32 @@ def new():
                                 if current_user.is_authenticated and not utils.is_admin():
                                     if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
                                         current_app.logger.error(f"Failed to deduct Ficore Credit for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session_id})
-                                        flash(trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.'), 'danger')
+                                        error_message = trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.')
+                                        if is_ajax:
+                                            return jsonify({'success': False, 'message': error_message}), 400
+                                        flash(error_message, 'danger')
                                         return redirect(url_for('budget.manage'))
                                 mongo_session.commit_transaction()
                             else:
                                 current_app.logger.warning(f"Budget ID {budget_id} not found for session {session_id}", extra={'session_id': session_id})
-                                flash(trans("budget_not_found", default='Budget not found.'), "danger")
+                                error_message = trans("budget_not_found", default='Budget not found.')
+                                if is_ajax:
+                                    return jsonify({'success': False, 'message': error_message}), 404
+                                flash(error_message, "danger")
                                 return redirect(url_for('budget.manage'))
                     utils.cache.delete_memoized(utils.get_budgets)
                     current_app.logger.info(f"Deleted budget ID {budget_id} for session {session_id}", extra={'session_id': session_id})
-                    flash(trans("budget_deleted_success", default='Budget deleted successfully!'), "success")
+                    success_message = trans("budget_deleted_success", default='Budget deleted successfully!')
+                    if is_ajax:
+                        return jsonify({'success': True, 'message': success_message}), 200
+                    flash(success_message, "success")
                     return redirect(url_for('budget.manage'))
                 except Exception as e:
                     current_app.logger.error(f"Failed to delete budget ID {budget_id} for session {session_id}: {str(e)}", extra={'session_id': session_id})
-                    flash(trans("budget_delete_failed", default='Error deleting budget.'), "danger")
+                    error_message = trans("budget_delete_failed", default='Error deleting budget.')
+                    if is_ajax:
+                        return jsonify({'success': False, 'message': error_message}), 500
+                    flash(error_message, "danger")
                     return redirect(url_for('budget.manage'))
 
         budgets = list(db.budgets.find(filter_criteria).sort('created_at', -1).limit(10))
@@ -699,7 +738,10 @@ def new():
         )
     except Exception as e:
         current_app.logger.exception(f"Unexpected error in budget.main active_tab: {active_tab}", extra={'session_id': session_id})
-        flash(trans('budget_dashboard_load_error', default='Error loading budget dashboard.'), 'danger')
+        error_message = trans('budget_dashboard_load_error', default='Error loading budget dashboard.')
+        if is_ajax:
+            return jsonify({'success': False, 'message': error_message}), 500
+        flash(error_message, 'danger')
         return render_template(
             'budget/new.html',
             form=form,
