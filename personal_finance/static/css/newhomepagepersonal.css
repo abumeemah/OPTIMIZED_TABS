@@ -523,14 +523,19 @@
 /* === Breadcrumb Styling === */
 .breadcrumb {
     background-color: transparent;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    font-size: 0.95rem;
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.75rem, 3vw, 1rem);
+    margin-bottom: clamp(0.25rem, 1.5vw, 0.5rem);
+    font-size: clamp(0.85rem, 2.5vw, 0.95rem);
     border-bottom: 1px solid #E5E7EB;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on touch devices */
 }
 
 .breadcrumb-item {
     color: #1E3A8A;
+    font-size: inherit;
 }
 
 .breadcrumb-item a {
@@ -555,23 +560,24 @@
 .tool-header {
     background: linear-gradient(135deg, #1E3A8A 0%, #D4AF37 100%);
     color: white;
-    padding: 1rem 0;
-    border-radius: 0.5rem;
-    margin-bottom: 1.5rem;
+    padding: clamp(0.75rem, 3vw, 1rem) 0;
+    border-radius: clamp(0.3rem, 1vw, 0.5rem);
+    margin-bottom: clamp(1rem, 4vw, 1.5rem);
     text-align: center;
+    min-height: 8vh; /* Ensure minimum height for small screens */
 }
 
+/* Override breadcrumb styles within tool-header */
 .tool-header .breadcrumb {
-    background-color: transparent;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0;
-    font-size: 0.95rem;
     border-bottom: none;
+    margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
+    padding: clamp(0.5rem, 2vw, 0.75rem) clamp(0.5rem, 2vw, 1rem);
 }
 
 .tool-header .breadcrumb-item,
 .tool-header .breadcrumb-item a {
     color: rgba(255, 255, 255, 0.85);
+    font-size: clamp(0.8rem, 2.5vw, 0.9rem);
 }
 
 .tool-header .breadcrumb-item a:hover,
@@ -579,24 +585,28 @@
     color: #FFFFFF;
     font-weight: 600;
 }
-/* === Tool Header Buttons (Icons) === */
-.tool-header.btn-group {
-  display: flex;
-  justify-content: center;
-  align-items: center;    
-  gap: 0.5rem;    
-  margin-top: 0.5rem;
-}
-.tool-header.btn-group.btn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 40px;   
-  height: 40px;
-  padding: 0;
-  overflow: hidden;
+
+/* === Tool Header Buttons === */
+.tool-header .btn-group {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(0.3rem, 1.5vw, 0.5rem);
+    margin-top: clamp(0.3rem, 1vw, 0.5rem);
+    flex-wrap: wrap;
 }
 
+.tool-header .btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: clamp(36px, 10vw, 40px);
+    height: clamp(36px, 10vw, 40px);
+    padding: 0;
+    overflow: hidden;
+    font-size: clamp(0.9rem, 3vw, 1rem); /* Ensure icons scale */
+    touch-action: manipulation; /* Improve touch responsiveness */
+}
 
 .tool-header .btn-outline-primary {
     border-color: rgba(255, 255, 255, 0.3);
@@ -611,12 +621,104 @@
     color: #FFFFFF;
 }
 
-@media (max-width: 768px) {
-    .tool-header .btn-group {
-        flex-wrap: wrap;
+/* === Responsive Breakpoints === */
+@media (max-width: 576px) { /* Extra small devices (phones, smartwatches) */
+    .breadcrumb {
+        font-size: clamp(0.75rem, 2.8vw, 0.85rem);
+        padding: clamp(0.4rem, 2vw, 0.6rem) clamp(0.5rem, 2.5vw, 0.75rem);
     }
 
-    .tool-header .btn-sm {
+    .tool-header .btn-group {
+        gap: clamp(0.2rem, 1vw, 0.3rem);
+    }
+
+    .tool-header .btn {
+        width: clamp(32px, 9vw, 36px);
+        height: clamp(32px, 9vw, 36px);
+        font-size: clamp(0.8rem, 2.8vw, 0.9rem);
+    }
+}
+
+@media (min-width: 577px) and (max-width: 768px) { /* Small devices (tablets, larger phones) */
+    .tool-header .btn-group {
+        flex-wrap: wrap;
+        gap: clamp(0.3rem, 1.2vw, 0.4rem);
+    }
+
+    .tool-header .btn {
         margin: 0.1rem;
+        width: clamp(34px, 8vw, 38px);
+        height: clamp(34px, 8vw, 38px);
+    }
+}
+
+@media (min-width: 769px) and (max-width: 992px) { /* Medium devices (tablets, small laptops) */
+    .tool-header .btn-group {
+        gap: clamp(0.4rem, 1.5vw, 0.5rem);
+    }
+
+    .tool-header .btn {
+        width: clamp(38px, 7vw, 40px);
+        height: clamp(38px, 7vw, 40px);
+    }
+}
+
+@media (min-width: 993px) and (max-width: 1200px) { /* Large devices (laptops, desktops) */
+    .tool-header {
+        padding: clamp(0.8rem, 2vw, 1rem);
+    }
+}
+
+@media (min-width: 1201px) { /* Extra large devices (large desktops, 4K) */
+    .tool-header {
+        padding: clamp(1rem, 1.5vw, 1.2rem);
+    }
+
+    .breadcrumb {
+        font-size: clamp(0.95rem, 1.2vw, 1rem);
+    }
+}
+
+@media (max-width: 360px) { /* Ultra-small devices (e.g., foldables, narrow phones) */
+    .breadcrumb {
+        font-size: clamp(0.7rem, 3vw, 0.8rem);
+        padding: clamp(0.3rem, 1.8vw, 0.5rem) clamp(0.4rem, 2vw, 0.6rem);
+    }
+
+    .tool-header .btn {
+        width: clamp(30px, 8.5vw, 34px);
+        height: clamp(30px, 8.5vw, 34px);
+        font-size: clamp(0.75rem, 2.5vw, 0.85rem);
+    }
+}
+
+@media (max-height: 400px) { /* Low-height devices (e.g., landscape phones, foldables) */
+    .tool-header {
+        padding: clamp(0.5rem, 2vh, 0.75rem) 0;
+        margin-bottom: clamp(0.5rem, 2vh, 1rem);
+    }
+
+    .tool-header .btn {
+        width: clamp(30px, 8vw, 34px);
+        height: clamp(30px, 8vw, 34px);
+    }
+}
+
+/* High-density displays (Retina, 4K) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .tool-header {
+        border-radius: clamp(0.4rem, 1vw, 0.6rem);
+    }
+
+    .tool-header .btn {
+        border-width: 1.5px; /* Slightly thicker borders for clarity */
+    }
+}
+
+/* Accessibility: Ensure minimum touch target size for touch devices */
+@media (pointer: coarse) {
+    .tool-header .btn {
+        min-width: 44px;
+        min-height: 44px; /* Minimum touch target size per WCAG */
     }
 }
