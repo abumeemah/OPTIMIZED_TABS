@@ -1,9 +1,9 @@
 <div class="tool-header mb-4">
     <div class="container-fluid">
         <div class="row align-items-center">
-            <div class="col-md-8">
+            <div class="col-md-12">
                 <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb mb-0">
+                    <ol class="breadcrumb mb-0 d-flex flex-column align-items-center">
                         <li class="breadcrumb-item">
                             <a href="{{ url_for('dashboard.index') }}" class="text-decoration-none">
                                 <i class="fas fa-home"></i> {{ t('general_dashboard', default='Dashboard') }}
@@ -15,28 +15,76 @@
                         <li class="breadcrumb-item active" aria-current="page">
                             {{ tool_title }}
                         </li>
+                        <li class="breadcrumb-item tool-buttons">
+                            <div class="btn-group" role="group" aria-label="{{ t('general_personal_finance_tools', default='Personal Finance Tools') }}">
+                                <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary btn-sm budget-planner {{ 'active' if request.endpoint == 'budget.index' else '' }}" 
+                                   data-bs-toggle="tooltip" title="{{ t('budget_title', default='Budget Planner') }}">
+                                    <i class="fas fa-calculator"></i>
+                                </a>
+                                <a href="{{ url_for('bill.index') }}" class="btn btn-outline-primary btn-sm bill-manager {{ 'active' if request.endpoint == 'bill.index' else '' }}" 
+                                   data-bs-toggle="tooltip" title="{{ t('bill_title', default='Bill Manager') }}">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                                <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-primary btn-sm shopping-planner {{ 'active' if request.endpoint == 'shopping.index' else '' }}" 
+                                   data-bs-toggle="tooltip" title="{{ t('shopping_title', default='Shopping List Planner') }}">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </a>
+                            </div>
+                        </li>
                     </ol>
                 </nav>
-            </div>
-            <div class="col-md-4 text-end">
-                <div class="btn-group" role="group" aria-label="{{ t('general_personal_finance_tools', default='Personal Finance Tools') }}">
-                    <a href="{{ url_for('budget.index') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'budget.index' else '' }}" 
-                       data-bs-toggle="tooltip" title="{{ t('budget_title', default='Budget Planner') }}">
-                        <i class="fas fa-calculator"></i>
-                    </a>
-                    <a href="{{ url_for('bill.index') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'bill.index' else '' }}" 
-                       data-bs-toggle="tooltip" title="{{ t('bill_title', default='Bill Manager') }}">
-                        <i class="fas fa-file-invoice"></i>
-                    </a>
-                    <a href="{{ url_for('shopping.index') }}" class="btn btn-outline-primary btn-sm {{ 'active' if request.endpoint == 'shopping.index' else '' }}" 
-                       data-bs-toggle="tooltip" title="{{ t('shopping_title', default='Shopping List Planner') }}">
-                        <i class="fas fa-shopping-cart"></i>
-                    </a>
-                </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.breadcrumb {
+    position: relative;
+    padding-bottom: 40px; /* Space for buttons */
+}
+
+.tool-buttons {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+}
+
+.tool-buttons .btn-group {
+    display: flex;
+    justify-content: center;
+}
+
+.breadcrumb-item.tool-buttons .btn {
+    margin: 0 5px;
+    font-size: 0.9rem;
+    padding: 5px 10px;
+}
+
+.breadcrumb-item.tool-buttons .btn i {
+    font-size: 1rem;
+}
+
+/* Ensure active button and hover states blend with breadcrumb style */
+.breadcrumb-item.tool-buttons .btn-outline-primary {
+    border-color: #6c757d; /* Match breadcrumb text-muted color */
+    color: #6c757d;
+}
+
+.breadcrumb-item.tool-buttons .btn-outline-primary:hover,
+.breadcrumb-item.tool-buttons .btn-outline-primary.active {
+    background-color: #6c757d;
+    color: #fff;
+    border-color: #6c757d;
+}
+
+/* Specific classes for targeting */
+.budget-planner { /* Optional: Add specific styles if needed */ }
+.bill-manager { /* Optional: Add specific styles if needed */ }
+.shopping-planner { /* Optional: Add specific styles if needed */ }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
