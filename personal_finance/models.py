@@ -337,16 +337,18 @@ def create_budget(db, budget_data):
         required_fields = ['user_id', 'income', 'fixed_expenses', 'variable_expenses', 'created_at']
         if not all(field in budget_data for field in required_fields):
             raise ValueError(trans('general_missing_budget_fields', default='Missing required budget fields'))
+        logger.debug(f"Inserting budget_data into {db.budgets.name}: {budget_data}", 
+                     extra={'session_id': budget_data.get('session_id', 'no-session-id')})
         result = db.budgets.insert_one(budget_data)
         logger.info(f"{trans('general_budget_created', default='Created budget record with ID')}: {result.inserted_id}", 
-                   extra={'session_id': budget_data.get('session_id', 'no-session-id')})
+                    extra={'session_id': budget_data.get('session_id', 'no-session-id')})
         return str(result.inserted_id)
     except WriteError as e:
-        logger.error(f"{trans('general_budget_creation_error', default='Error creating budget record')}: {str(e)}", 
+        logger.error(f"WriteError creating budget record: {str(e)}", 
                      exc_info=True, extra={'session_id': budget_data.get('session_id', 'no-session-id')})
         raise
     except Exception as e:
-        logger.error(f"{trans('general_budget_creation_error', default='Error creating budget record')}: {str(e)}", 
+        logger.error(f"Unexpected error creating budget record: {str(e)}", 
                      exc_info=True, extra={'session_id': budget_data.get('session_id', 'no-session-id')})
         raise
 
