@@ -580,37 +580,23 @@
     font-weight: 600;
 }
 /* === Tool Header Buttons (Icons) === */
-.tool-header .btn-group {
-    display: flex;
-    flex-wrap: nowrap;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-}
-
-
 .tool-header.btn-group {
   display: flex;
-  justify-content: center; /* centers buttons horizontally */
-  align-items: center;     /* centers buttons vertically */
-  gap: 0.5rem;             /* optional spacing between buttons */
+  justify-content: center;
+  align-items: center;    
+  gap: 0.5rem;    
+  margin-top: 0.5rem;
 }
 .tool-header.btn-group.btn {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 40px;   /* adjust width for consistent button size */
-  height: 40px;  /* adjust height for consistent button size */
+  width: 40px;   
+  height: 40px;
   padding: 0;
+  overflow: hidden;
 }
 
-.tool-header .btn-group .btn {
-    max-width: 120px;   /* limit button max width */
-    flex-shrink: 1;     /* allow buttons to shrink */
-    white-space: nowrap; 
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
 .tool-header .btn-outline-primary {
     border-color: rgba(255, 255, 255, 0.3);
