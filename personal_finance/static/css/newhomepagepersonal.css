@@ -594,7 +594,8 @@
   justify-content: center; /* centers buttons horizontally */
   align-items: center;     /* centers buttons vertically */
   gap: 0.5rem;             /* optional spacing between buttons */
-}.tool-header.btn-group.btn {
+}
+.tool-header.btn-group.btn {
   display: flex;
   justify-content: center;
   align-items: center;
