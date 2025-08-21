@@ -588,6 +588,21 @@
     margin-top: 0.5rem;
 }
 
+
+.tool-header.btn-group {
+  display: flex;
+  justify-content: center; /* centers buttons horizontally */
+  align-items: center;     /* centers buttons vertically */
+  gap: 0.5rem;             /* optional spacing between buttons */
+}.tool-header.btn-group.btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;   /* adjust width for consistent button size */
+  height: 40px;  /* adjust height for consistent button size */
+  padding: 0;
+}
+
 .tool-header .btn-group .btn {
     max-width: 120px;   /* limit button max width */
     flex-shrink: 1;     /* allow buttons to shrink */
