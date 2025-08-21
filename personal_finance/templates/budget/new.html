@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ t('budget_create_budget', default='Create Budget') }}{% endblock %}
 {% block content %}
+<!-- Add CSRF meta tag for AJAX submissions -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <div class="container mt-4">
     {% set tool_name = 'budget_create_budget' %}
     {% set tool_icon = 'fa-plus-circle' %}
@@ -323,21 +326,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Form submission validation
+    // Form submission with AJAX support
     if (form) {
         form.addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent default form submission for AJAX
             if (!form.checkValidity()) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Find first invalid field and focus it
+                form.classList.add('was-validated');
                 const firstInvalid = form.querySelector(':invalid');
                 if (firstInvalid) {
                     firstInvalid.focus();
                     firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
+                return;
             }
-            form.classList.add('was-validated');
+
+            const formData = new FormData(form);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+            fetch('{{ url_for("budget.new") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
+                body: formData
+            })
+            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status === 200 && data.success) {
+                    window.location.href = '{{ url_for("budget.dashboard") }}';
+                } else {
+                    alert(data.message || '{{ t("budget_form_invalid", default="Invalid form data. Please check your inputs.") }}');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('{{ t("budget_submission_error", default="Error submitting budget. Please try again.") }}');
+            });
         });
 
         // Initial validation setup
