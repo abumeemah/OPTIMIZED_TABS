@@ -509,13 +509,10 @@ def new():
                             if current_user.is_authenticated and not utils.is_admin():
                                 if not deduct_ficore_credits(db, current_user.id, 1, 'create_budget', budget_id):
                                     db.budgets.delete_one({'_id': budget_id}, session=mongo_session)
-                                    current_app.logger.error(f"Failed to deduct Ficore Credit for creating budget {budget_id} by user {current_user.id}", extra={'session_id': session_id})
-                                    error_message = trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for creating budget.')
-                                    if is_ajax:
-                                        return jsonify({'success': False, 'message': error_message}), 400
-                                    flash(error_message, 'danger')
-                                    return redirect(url_for('budget.new'))
+                                    raise ValueError("Credit deduction failed")
                             mongo_session.commit_transaction()
+                    current_app.logger.info(f"Budget {created_budget_id} saved successfully to MongoDB for session {session_id}", extra={'session_id': session_id})
+                    # Move cache clearing outside transaction
                     try:
                         caching_ext = current_app.extensions.get('caching')
                         if caching_ext:
@@ -526,7 +523,7 @@ def new():
                             current_app.logger.warning(f"Caching extension not found; skipping cache clear", extra={'session_id': session_id})
                     except Exception as e:
                         current_app.logger.warning(f"Failed to clear cache for get_budgets: {str(e)}", extra={'session_id': session_id})
-                    current_app.logger.info(f"Budget {created_budget_id} saved successfully to MongoDB for session {session_id}", extra={'session_id': session_id})
+
                     success_message = trans("general_budget_created", default='Budget created successfully!')
                     if is_ajax:
                         return jsonify({'success': True, 'budget_id': str(created_budget_id), 'message': success_message}), 200
