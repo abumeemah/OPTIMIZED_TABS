@@ -21,7 +21,7 @@
             <p><strong>{{ t('admin_created_at', default='Created At') }}:</strong> {{ request.created_at | format_date }}</p>
             <p><strong>{{ t('ficore_credit_balance', default='Ficore Credit Balance') }}:</strong> {{ request.ficore_credit_balance }}</p>
             {% if request.receipt_file_id %}
-            <p><strong>{{ t('credits_receipt', default='Receipt') }}:</strong> <a href="{{ url_for('credits.download_receipt', file_id=request.receipt_file_id) }}">{{ t('general_download', default='Download') }}</a></p>
+            <p><strong>{{ t('credits_receipt', default='Receipt') }}:</strong> <a href="{{ url_for('credits.view_receipt', file_id=request.receipt_file_id) }}">{{ t('general_download', default='Download') }}</a></p>
             {% endif %}
 
             <form method="POST">
