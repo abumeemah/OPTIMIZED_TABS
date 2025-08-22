@@ -346,7 +346,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch('{{ url_for("budget.new") }}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrfToken
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest' 
                 },
                 body: formData
             })
@@ -371,3 +372,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
