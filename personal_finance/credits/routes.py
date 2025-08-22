@@ -90,15 +90,15 @@ def fix_ficore_credit_balances():
                      extra={'session_id': 'system', 'ip_address': 'system'})
 
 def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add', admin_id: str = None) -> None:
-    """Credit or log Ficore Credits with MongoDB transaction, ensuring integer balance."""
+    """Credit or log Ficore Credits with MongoDB transaction, ensuring double balance."""
     try:
         db = utils.get_mongo_db()
         client = db.client
         user_query = utils.get_user_query(user_id)
         with client.start_session() as mongo_session:
             with mongo_session.start_transaction():
-                # Ensure amount is int
-                amount = int(amount)
+                # Ensure amount is converted to float for double type
+                amount = float(amount)
                 if type == 'add':
                     result = db.users.update_one(
                         user_query,
@@ -109,10 +109,10 @@ def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add'
                         logger.error(f"No user found for ID {user_id} to credit Ficore Credits, ref: {ref}",
                                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': user_id})
                         raise ValueError(f"No user found for ID {user_id}")
-                    # Ensure the resulting balance is an integer
+                    # Ensure the resulting balance is a double
                     db.users.update_one(
                         user_query,
-                        [{'$set': {'ficore_credit_balance': {'$toInt': '$ficore_credit_balance'}}}],
+                        [{'$set': {'ficore_credit_balance': {'$toDouble': '$ficore_credit_balance'}}}],
                         session=mongo_session
                     )
                 db.ficore_credit_transactions.insert_one({
@@ -130,17 +130,21 @@ def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add'
                     'timestamp': datetime.utcnow()
                 }, session=mongo_session)
     except ValueError as e:
+        if mongo_session.in_transaction:  # Check if session is still active
+            mongo_session.abort_transaction()
         logger.error(f"Transaction aborted for ref {ref}: {str(e)}",
                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': user_id})
-        mongo_session.abort_transaction()
         raise
     except errors.PyMongoError as e:
+        if mongo_session.in_transaction:  # Check if session is still active
+            mongo_session.abort_transaction()
         logger.error(f"MongoDB error during Ficore Credit transaction for user {user_id}, ref {ref}: {str(e)}",
                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': user_id})
-        mongo_session.abort_transaction()
         raise
-    except AttributeError as e:
-        logger.error(f"AttributeError in credit_ficore_credits for user {user_id}, ref {ref}: {str(e)}",
+    except Exception as e:
+        if mongo_session.in_transaction:  # Check if session is still active
+            mongo_session.abort_transaction()
+        logger.error(f"Unexpected error in credit_ficore_credits for user {user_id}, ref {ref}: {str(e)}",
                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': user_id})
         raise
 
@@ -494,10 +498,10 @@ def receipt_upload():
                                 logger.error(f"No user found for ID {current_user.id} to deduct Ficore Credits, ref: {ref}",
                                              extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
                                 raise ValueError(f"No user found for ID {current_user.id}")
-                            # Ensure the resulting balance is an integer
+                            # Ensure the resulting balance is a double
                             db.users.update_one(
                                 user_query,
-                                [{'$set': {'ficore_credit_balance': {'$toInt': '$ficore_credit_balance'}}}],
+                                [{'$set': {'ficore_credit_balance': {'$toDouble': '$ficore_credit_balance'}}}],
                                 session=mongo_session
                             )
                             db.ficore_credit_transactions.insert_one({
@@ -515,6 +519,8 @@ def receipt_upload():
                             'timestamp': datetime.utcnow()
                         }, session=mongo_session)
             except (ValueError, errors.PyMongoError) as e:
+                if mongo_session.in_transaction:  # Check if session is still active
+                    mongo_session.abort_transaction()
                 logger.error(f"Error during transaction for receipt upload for user {current_user.id}, ref {ref}: {str(e)}",
                              extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
                 try:
@@ -639,8 +645,8 @@ def get_balance():
         db = utils.get_mongo_db()
         user = get_user(db, str(current_user.id))
         balance = user.ficore_credit_balance if user else 0
-        # Ensure balance is returned as int
-        balance = int(balance)
+        # Ensure balance is returned as float
+        balance = float(balance)
         return jsonify({'balance': balance})
     except AttributeError as e:
         logger.error(f"AttributeError fetching Ficore Credit balance for user {current_user.id}: {str(e)}",
