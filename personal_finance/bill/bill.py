@@ -1,4 +1,5 @@
 from flask import Blueprint, request, session, redirect, url_for, render_template, flash, current_app, jsonify
+from flask import Response
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from wtforms import StringField, DecimalField, SelectField, BooleanField, IntegerField, DateField
