@@ -309,7 +309,6 @@ class BudgetForm(FlaskForm):
                 float(self.housing.data or 0.0),
                 float(self.food.data or 0.0),
                 float(self.transport.data or 0.0),
-                float(self.dependents.data or 0),
                 float(self.miscellaneous.data or 0.0),
                 float(self.others.data or 0.0),
                 total_category_amount
@@ -405,6 +404,8 @@ def new():
                         'fixed_expenses_raw': 0.0,
                         'variable_expenses': format_currency(0.0),
                         'variable_expenses_raw': 0.0,
+                        'total_expenses': format_currency(0.0),
+                        'total_expenses_raw': 0.0,
                         'savings_goal': format_currency(0.0),
                         'savings_goal_raw': 0.0,
                         'surplus_deficit': 0.0,
@@ -470,15 +471,14 @@ def new():
                     except AttributeError as e:
                         current_app.logger.warning(f"Invalid custom category entry: {cat.__dict__}, error: {str(e)}", extra={'session_id': session_id})
                         continue
-                expenses = sum([
-                    float(form.housing.data or 0.0),
-                    float(form.food.data or 0.0),
-                    float(form.transport.data or 0.0),
-                    float(form.dependents.data or 0),
-                    float(form.miscellaneous.data or 0.0),
-                    float(form.others.data or 0.0),
-                    sum(cat['amount'] for cat in custom_categories)
-                ])
+                housing_val = float(form.housing.data or 0.0)
+                food_val = float(form.food.data or 0.0)
+                transport_val = float(form.transport.data or 0.0)
+                miscellaneous_val = float(form.miscellaneous.data or 0.0)
+                others_val = float(form.others.data or 0.0)
+                fixed_expenses = housing_val + food_val + transport_val + miscellaneous_val + others_val
+                variable_expenses = sum(cat['amount'] for cat in custom_categories)
+                expenses = fixed_expenses + variable_expenses
                 savings_goal = float(form.savings_goal.data or 0.0)
                 surplus_deficit = income - expenses
                 budget_id = ObjectId()
@@ -488,16 +488,16 @@ def new():
                     'session_id': session_id,
                     'user_email': current_user.email,
                     'income': income,
-                    'fixed_expenses': expenses,
-                    'variable_expenses': 0.0,
+                    'fixed_expenses': fixed_expenses,
+                    'variable_expenses': variable_expenses,
                     'savings_goal': savings_goal,
                     'surplus_deficit': surplus_deficit,
-                    'housing': float(form.housing.data or 0.0),
-                    'food': float(form.food.data or 0.0),
-                    'transport': float(form.transport.data or 0.0),
+                    'housing': housing_val,
+                    'food': food_val,
+                    'transport': transport_val,
                     'dependents': int(form.dependents.data or 0),
-                    'miscellaneous': float(form.miscellaneous.data or 0.0),
-                    'others': float(form.others.data or 0.0),
+                    'miscellaneous': miscellaneous_val,
+                    'others': others_val,
                     'custom_categories': custom_categories,
                     'created_at': datetime.utcnow()
                 }
@@ -550,6 +550,8 @@ def new():
                             'fixed_expenses_raw': 0.0,
                             'variable_expenses': format_currency(0.0),
                             'variable_expenses_raw': 0.0,
+                            'total_expenses': format_currency(0.0),
+                            'total_expenses_raw': 0.0,
                             'savings_goal': format_currency(0.0),
                             'savings_goal_raw': 0.0,
                             'surplus_deficit': 0.0,
@@ -601,7 +603,6 @@ def new():
                             if result.deleted_count > 0:
                                 if current_user.is_authenticated and not utils.is_admin():
                                     if not deduct_ficore_credits(db, current_user.id, 1, 'delete_budget', budget_id):
-                                        current_app.logger.error(f"Failed to deduct Ficore Credit for deleting budget {budget_id} by user {current_user.id}", extra={'session_id': session_id})
                                         error_message = trans('budget_credit_deduction_failed', default='Failed to deduct Ficore Credit for deleting budget.')
                                         if is_ajax:
                                             return jsonify({'success': False, 'message': error_message}), 400
@@ -644,6 +645,9 @@ def new():
         budgets_dict = {}
         latest_budget = None
         for budget in budgets:
+            fixed_raw = float(budget.get('fixed_expenses', 0.0))
+            var_raw = float(budget.get('variable_expenses', 0.0))
+            total_raw = fixed_raw + var_raw
             budget_data = {
                 'id': str(budget['_id']),
                 'user_id': budget.get('user_id'),
@@ -651,10 +655,12 @@ def new():
                 'user_email': budget.get('user_email', current_user.email),
                 'income': format_currency(budget.get('income', 0.0)),
                 'income_raw': float(budget.get('income', 0.0)),
-                'fixed_expenses': format_currency(budget.get('fixed_expenses', 0.0)),
-                'fixed_expenses_raw': float(budget.get('fixed_expenses', 0.0)),
-                'variable_expenses': format_currency(budget.get('variable_expenses', 0.0)),
-                'variable_expenses_raw': float(budget.get('variable_expenses', 0.0)),
+                'fixed_expenses': format_currency(fixed_raw),
+                'fixed_expenses_raw': fixed_raw,
+                'variable_expenses': format_currency(var_raw),
+                'variable_expenses_raw': var_raw,
+                'total_expenses': format_currency(total_raw),
+                'total_expenses_raw': total_raw,
                 'savings_goal': format_currency(budget.get('savings_goal', 0.0)),
                 'savings_goal_raw': float(budget.get('savings_goal', 0.0)),
                 'surplus_deficit': float(budget.get('surplus_deficit', 0.0)),
@@ -689,6 +695,8 @@ def new():
                 'fixed_expenses_raw': 0.0,
                 'variable_expenses': format_currency(0.0),
                 'variable_expenses_raw': 0.0,
+                'total_expenses': format_currency(0.0),
+                'total_expenses_raw': 0.0,
                 'savings_goal': format_currency(0.0),
                 'savings_goal_raw': 0.0,
                 'surplus_deficit': 0.0,
@@ -712,7 +720,6 @@ def new():
             trans('budget_housing_rent', default='Housing/Rent'): latest_budget.get('housing_raw', 0.0),
             trans('budget_food', default='Food'): latest_budget.get('food_raw', 0.0),
             trans('budget_transport', default='Transport'): latest_budget.get('transport_raw', 0.0),
-            trans('budget_dependents_support', default='Dependents Support'): latest_budget.get('dependents_raw', 0),
             trans('budget_miscellaneous', default='Miscellaneous'): latest_budget.get('miscellaneous_raw', 0.0),
             trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0),
         }
@@ -775,6 +782,8 @@ def new():
                 'fixed_expenses_raw': 0.0,
                 'variable_expenses': format_currency(0.0),
                 'variable_expenses_raw': 0.0,
+                'total_expenses': format_currency(0.0),
+                'total_expenses_raw': 0.0,
                 'savings_goal': format_currency(0.0),
                 'savings_goal_raw': 0.0,
                 'surplus_deficit': 0.0,
@@ -845,6 +854,9 @@ def dashboard():
         budgets_dict = {}
         latest_budget = None
         for budget in budgets:
+            fixed_raw = float(budget.get('fixed_expenses', 0.0))
+            var_raw = float(budget.get('variable_expenses', 0.0))
+            total_raw = fixed_raw + var_raw
             budget_data = {
                 'id': str(budget['_id']),
                 'user_id': budget.get('user_id'),
@@ -852,10 +864,12 @@ def dashboard():
                 'user_email': budget.get('user_email', current_user.email),
                 'income': format_currency(budget.get('income', 0.0)),
                 'income_raw': float(budget.get('income', 0.0)),
-                'fixed_expenses': format_currency(budget.get('fixed_expenses', 0.0)),
-                'fixed_expenses_raw': float(budget.get('fixed_expenses', 0.0)),
-                'variable_expenses': format_currency(budget.get('variable_expenses', 0.0)),
-                'variable_expenses_raw': float(budget.get('variable_expenses', 0.0)),
+                'fixed_expenses': format_currency(fixed_raw),
+                'fixed_expenses_raw': fixed_raw,
+                'variable_expenses': format_currency(var_raw),
+                'variable_expenses_raw': var_raw,
+                'total_expenses': format_currency(total_raw),
+                'total_expenses_raw': total_raw,
                 'savings_goal': format_currency(budget.get('savings_goal', 0.0)),
                 'savings_goal_raw': float(budget.get('savings_goal', 0.0)),
                 'surplus_deficit': float(budget.get('surplus_deficit', 0.0)),
@@ -891,6 +905,8 @@ def dashboard():
                 'fixed_expenses_raw': 0.0,
                 'variable_expenses': format_currency(0.0),
                 'variable_expenses_raw': 0.0,
+                'total_expenses': format_currency(0.0),
+                'total_expenses_raw': 0.0,
                 'savings_goal': format_currency(0.0),
                 'savings_goal_raw': 0.0,
                 'surplus_deficit': 0.0,
@@ -915,7 +931,6 @@ def dashboard():
             trans('budget_housing_rent', default='Housing/Rent'): latest_budget.get('housing_raw', 0.0),
             trans('budget_food', default='Food'): latest_budget.get('food_raw', 0.0),
             trans('budget_transport', default='Transport'): latest_budget.get('transport_raw', 0.0),
-            trans('budget_dependents_support', default='Dependents Support'): latest_budget.get('dependents_raw', 0),
             trans('budget_miscellaneous', default='Miscellaneous'): latest_budget.get('miscellaneous_raw', 0.0),
             trans('budget_others', default='Others'): latest_budget.get('others_raw', 0.0)
         }
@@ -1051,6 +1066,9 @@ def manage():
         budgets_dict = {}
         
         for budget in budgets:
+            fixed_raw = float(budget.get('fixed_expenses', 0.0))
+            var_raw = float(budget.get('variable_expenses', 0.0))
+            total_raw = fixed_raw + var_raw
             budget_data = {
                 'id': str(budget['_id']),
                 'user_id': budget.get('user_id'),
@@ -1058,10 +1076,12 @@ def manage():
                 'user_email': budget.get('user_email', current_user.email),
                 'income': format_currency(budget.get('income', 0.0)),
                 'income_raw': float(budget.get('income', 0.0)),
-                'fixed_expenses': format_currency(budget.get('fixed_expenses', 0.0)),
-                'fixed_expenses_raw': float(budget.get('fixed_expenses', 0.0)),
-                'variable_expenses': format_currency(budget.get('variable_expenses', 0.0)),
-                'variable_expenses_raw': float(budget.get('variable_expenses', 0.0)),
+                'fixed_expenses': format_currency(fixed_raw),
+                'fixed_expenses_raw': fixed_raw,
+                'variable_expenses': format_currency(var_raw),
+                'variable_expenses_raw': var_raw,
+                'total_expenses': format_currency(total_raw),
+                'total_expenses_raw': total_raw,
                 'savings_goal': format_currency(budget.get('savings_goal', 0.0)),
                 'savings_goal_raw': float(budget.get('savings_goal', 0.0)),
                 'surplus_deficit': float(budget.get('surplus_deficit', 0.0)),
