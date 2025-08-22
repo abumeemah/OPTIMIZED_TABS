@@ -48,7 +48,7 @@ def initialize_app_data(app):
                             'properties': {
                                 '_id': {'bsonType': 'string'},
                                 'user_id': {'bsonType': 'string'},
-                                'ficore_credit_balance': {'bsonType': 'double': 'int': 'minimum': 0}
+                                'ficore_credit_balance': {  'bsonType': ['double', 'int'],  'minimum': 0}
                             }
                         }
                     },
