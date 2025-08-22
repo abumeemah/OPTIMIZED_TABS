@@ -48,7 +48,7 @@
                                 <div class="col-4">
                                     <div class="border-end">
                                         <small class="text-muted d-block">{{ t('budget_expenses', default='Expenses') }}</small>
-                                        <strong class="text-danger">{{ budget.get('fixed_expenses', '0.00') }}</strong>
+                                        <strong class="text-danger">{{ budget.get('total_expenses', '0.00') }}</strong>
                                     </div>
                                 </div>
                                 <div class="col-4">
@@ -92,6 +92,19 @@
                                     </ul>
                                 </div>
                             </div>
+
+                            {% if budget.get('custom_categories', []) %}
+                                <hr class="my-2">
+                                <small class="text-muted d-block">{{ t('budget_custom_categories', default='Custom Categories') }}</small>
+                                <ul class="list-unstyled small mt-1">
+                                    {% for cat in budget.get('custom_categories', []) %}
+                                        <li>
+                                            <i class="fas fa-tag text-purple me-1"></i>
+                                            {{ cat['name'] }}: {{ cat['amount'] }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
 
                             <!-- Actions -->
                             <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
