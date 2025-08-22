@@ -117,18 +117,21 @@ def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add'
                     )
                 # Map type to action
                 action = 'credit' if type == 'add' else 'debit'
-                # Insert transaction with all required fields
-                db.ficore_credit_transactions.insert_one({
+                # Prepare transaction document
+                document = {
                     'user_id': user_id,
                     'action': action,
                     'amount': amount,
-                    'timestamp': datetime.utcnow().isoformat(),  # Use timestamp to match schema
-                    'session_id': session.get('sid', 'no-session-id'),  # Include session_id
-                    'status': 'completed',  # Add status
-                    'type': type,  # Optionally keep type for backward compatibility
+                    'timestamp': datetime.utcnow(),
+                    'session_id': session.get('sid', 'no-session-id'),
+                    'status': 'completed',
+                    'type': type,
                     'ref': ref,
                     'payment_method': 'approved_request' if type == 'add' else None
-                }, session=mongo_session)
+                }
+                logger.debug(f"Inserting ficore_credit_transaction: {document}",
+                             extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': user_id})
+                db.ficore_credit_transactions.insert_one(document, session=mongo_session)
                 db.audit_logs.insert_one({
                     'admin_id': admin_id or 'system',
                     'action': f'credit_ficore_credits_{type}',
@@ -300,13 +303,15 @@ def history():
 
         # Combine and sort transactions by date in descending order
         all_transactions = ficore_transactions + valid_legacy_transactions
-        all_transactions.sort(key=lambda x: x.get('date', datetime.min), reverse=True)
+        all_transactions.sort(key=lambda x: x.get('timestamp', x.get('date', datetime.min)), reverse=True)
 
         # Format dates in Python before passing to template
         formatted_transactions = []
         for tx in all_transactions:
             tx_dict = to_dict_ficore_credit_transaction(tx)
-            if 'date' in tx and isinstance(tx['date'], datetime):
+            if 'timestamp' in tx and isinstance(tx['timestamp'], datetime):
+                tx_dict['date_str'] = tx['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            elif 'date' in tx and isinstance(tx['date'], datetime):
                 tx_dict['date_str'] = tx['date'].strftime('%Y-%m-%d %H:%M:%S')
             else:
                 tx_dict['date_str'] = None
@@ -510,14 +515,21 @@ def receipt_upload():
                                 [{'$set': {'ficore_credit_balance': {'$toDouble': '$ficore_credit_balance'}}}],
                                 session=mongo_session
                             )
-                            db.ficore_credit_transactions.insert_one({
+                            # Insert transaction with all required fields
+                            document = {
                                 'user_id': str(current_user.id),
-                                'amount': -1,
+                                'action': 'debit',
+                                'amount': float(-1),
+                                'timestamp': datetime.utcnow(),
+                                'session_id': session.get('sid', 'no-session-id'),
+                                'status': 'completed',
                                 'type': 'spend',
                                 'ref': ref,
-                                'payment_method': None,
-                                'date': datetime.utcnow()
-                            }, session=mongo_session)
+                                'payment_method': None
+                            }
+                            logger.debug(f"Inserting ficore_credit_transaction: {document}",
+                                         extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                            db.ficore_credit_transactions.insert_one(document, session=mongo_session)
                         db.audit_logs.insert_one({
                             'admin_id': 'system',
                             'action': 'receipt_upload',
@@ -525,7 +537,7 @@ def receipt_upload():
                             'timestamp': datetime.utcnow()
                         }, session=mongo_session)
             except (ValueError, errors.PyMongoError) as e:
-                if mongo_session.in_transaction:  # Check if session is still active
+                if mongo_session.in_transaction:
                     mongo_session.abort_transaction()
                 logger.error(f"Error during transaction for receipt upload for user {current_user.id}, ref {ref}: {str(e)}",
                              extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
