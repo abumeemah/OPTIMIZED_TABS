@@ -24,18 +24,18 @@
                         <th scope="col">{{ t('general_amount', default='Amount') }}</th>
                         <th scope="col">{{ t('general_payment_method', default='Payment Method') }}</th>
                         <th scope="col">{{ t('credits_facilitated_by', default='Facilitated By') }}</th>
-                        <th scope="col">{{ t('general_reference', default='Reference') }}</th>
+                        <th scope="col">{{ t('general_description', default='Description') }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tx in transactions %}
                         <tr>
-                            <td data-label="{{ t('general_date', default='Date') }}">{{ tx.date.strftime('%Y-%m-%d %H:%M:%S') if tx.date else t('general_na', default='N/A') }}</td>
+                            <td data-label="{{ t('general_date', default='Date') }}">{{ tx.date_str or t('general_na', default='N/A') }}</td>
                             <td data-label="{{ t('general_type', default='Type') }}">{{ t(tx.type, default=tx.type|default('Unknown')) }}</td>
                             <td data-label="{{ t('general_amount', default='Amount') }}">{{ tx.amount|default(0) }} FCs</td>
                             <td data-label="{{ t('general_payment_method', default='Payment Method') }}">{{ t(tx.payment_method, default=tx.payment_method or t('general_na', default='N/A')) }}</td>
                             <td data-label="{{ t('credits_facilitated_by', default='Facilitated By') }}">{{ tx.facilitated_by_agent or t('general_na', default='N/A') }}</td>
-                            <td data-label="{{ t('general_reference', default='Reference') }}">{{ tx.ref or t('general_na', default='N/A') }}</td>
+                            <td data-label="{{ t('general_description', default='Description') }}">{{ t(tx.description, default=tx.description|default(tx.ref|default('Unknown'))) }}</td>
                         </tr>
                     {% endfor %}
                 </tbody>
