@@ -93,7 +93,7 @@ GENERAL_TRANSLATIONS = {
         'settings_agent_role': 'Agent Role',
         'settings_agent_role_placeholder': 'Enter agent role',
         # General module (existing)
-        'general_welcome': 'Welcome to FiCore Africa',
+        'general_welcome': 'Welcome',
         'general_error': 'An error has occurred',
         'lang_en': 'English',
         'lang_ha': 'Hausa',
