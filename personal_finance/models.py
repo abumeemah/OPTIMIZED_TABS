@@ -1123,19 +1123,21 @@ def get_ficore_credit_transactions(db, query):
         logger.error(f"Error getting Ficore Credit transactions: {str(e)}")
         return []
 
-def to_dict_ficore_credit_transaction(record):
-    """Convert Ficore Credit transaction record to dictionary."""
-    if not record:
-        return {}
+def to_dict_ficore_credit_transaction(transaction):
+    """Convert a ficore_credit_transaction document to a dictionary."""
     return {
-        '_id': str(record.get('_id', '')),
-        'user_id': record.get('user_id', ''),
-        'amount': record.get('amount', 0),
-        'type': record.get('type', ''),
-        'ref': record.get('ref', ''),
-        'payment_method': record.get('payment_method'),
-        'facilitated_by_agent': record.get('facilitated_by_agent'),
-        'date': record.get('date')
+        'user_id': str(transaction.get('user_id', '')),
+        'action': transaction.get('action', ''),
+        'amount': transaction.get('amount', 0),
+        'timestamp': transaction.get('timestamp', None),
+        'date': transaction.get('timestamp', None),  
+        'session_id': transaction.get('session_id', ''),
+        'status': transaction.get('status', ''),
+        'type': transaction.get('type', ''),
+        'ref': transaction.get('ref', ''),
+        'description': transaction.get('description', ''),
+        'payment_method': transaction.get('payment_method', None),
+        'facilitated_by_agent': transaction.get('facilitated_by_agent', None)
     }
 
 def create_feedback(db, feedback_data):
