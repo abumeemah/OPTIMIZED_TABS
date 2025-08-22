@@ -1,6 +1,6 @@
 import logging
 from bson import ObjectId
-from flask import Blueprint, request, session, redirect, url_for, render_template, flash, current_app, jsonify, Response
+from flask import Blueprint, request, session as flask_session, redirect, url_for, render_template, flash, current_app, jsonify, Response
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from wtforms import StringField, FloatField, SelectField, SubmitField, TextAreaField, DateField, IntegerField, validators, BooleanField
@@ -45,7 +45,7 @@ def log_audit_action(action, details=None):
         })
     except Exception as e:
         logger.error(f"Error logging audit action: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
 
 # Routes
 @admin_bp.route('/dashboard', methods=['GET'])
@@ -82,7 +82,7 @@ def dashboard():
             user['ficore_credit_balance'] = int(user.get('ficore_credit_balance', 0))  # Ensure integer
             
         logger.info(f"Admin {current_user.id} accessed dashboard at {datetime.datetime.utcnow()}",
-                    extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                    extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         return render_template(
             'admin/dashboard.html',
             stats=stats,
@@ -92,7 +92,7 @@ def dashboard():
         )
     except Exception as e:
         logger.error(f"Error loading admin dashboard for {current_user.id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_dashboard_error', default='An error occurred while loading the dashboard'), 'danger')
         return redirect(url_for('personal_bp.error'))
 
@@ -110,7 +110,7 @@ def view_feedbacks():
         return render_template('admin/feedback_list.html', feedbacks=feedbacks, title=trans('admin_feedbacks_title', default='Feedbacks'))
     except Exception as e:
         logger.error(f"Error fetching feedbacks for admin: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return render_template('admin/feedback_list.html', feedbacks=[]), 500
 
@@ -130,7 +130,7 @@ def manage_users():
         return render_template('admin/users.html', users=users, title=trans('admin_manage_users_title', default='Manage Users'))
     except Exception as e:
         logger.error(f"Error fetching users for admin: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return render_template('admin/users.html', users=[]), 500
 
@@ -159,12 +159,12 @@ def suspend_user(user_id):
         else:
             flash(trans('admin_user_suspended', default='User suspended successfully'), 'success')
             logger.info(f"Admin {current_user.id} suspended user {user_id}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             log_audit_action('suspend_user', {'user_id': user_id})
         return redirect(url_for('admin.manage_users'))
     except Exception as e:
         logger.error(f"Error suspending user {user_id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.manage_users'))
 
@@ -196,12 +196,12 @@ def delete_user(user_id):
         else:
             flash(trans('admin_user_deleted', default='User deleted successfully'), 'success')
             logger.info(f"Admin {current_user.id} deleted user {user_id}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             log_audit_action('delete_user', {'user_id': user_id})
         return redirect(url_for('admin.manage_users'))
     except Exception as e:
         logger.error(f"Error deleting user {user_id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.manage_users'))
 
@@ -223,12 +223,12 @@ def delete_item(collection, item_id):
         else:
             flash(trans('admin_item_deleted', default='Item deleted successfully'), 'success')
             logger.info(f"Admin {current_user.id} deleted {collection} item {item_id}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             log_audit_action(f'delete_{collection}_item', {'item_id': item_id, 'collection': collection})
         return redirect(url_for(f'admin.admin_{collection}' if collection in ['budgets', 'bills', 'credit_requests'] else 'admin.dashboard'))
     except Exception as e:
         logger.error(f"Error deleting {collection} item {item_id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.dashboard'))
 
@@ -257,7 +257,7 @@ def view_credit_requests():
         )
     except Exception as e:
         logger.error(f"Error fetching credit requests for admin {current_user.id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return render_template('admin/credits_requests.html', form=form, requests=[], title=trans('general_error', default='Error'))
 
@@ -279,8 +279,8 @@ def manage_credit_request(request_id):
         if form.validate_on_submit():
             status = form.status.data
             ref = f"REQ_PROCESS_{datetime.datetime.utcnow().isoformat()}"
-            with client.start_session() as session:
-                with session.start_transaction():
+            with client.start_session() as mongo_session:
+                with mongo_session.start_transaction():
                     db.credit_requests.update_one(
                         {'_id': ObjectId(request_id)},
                         {
@@ -290,7 +290,7 @@ def manage_credit_request(request_id):
                                 'admin_id': str(current_user.id)
                             }
                         },
-                        session=session
+                        session=mongo_session
                     )
                     if status == 'approved':
                         from credits import credit_ficore_credits
@@ -306,10 +306,10 @@ def manage_credit_request(request_id):
                         'action': f'credit_request_{status}',
                         'details': {'request_id': request_id, 'user_id': request_data['user_id'], 'amount': int(request_data['amount'])},
                         'timestamp': datetime.datetime.utcnow()
-                    }, session=session)
+                    }, session=mongo_session)
             flash(trans(f'credits_request_{status}', default=f'Credit request {status} successfully'), 'success')
             logger.info(f"Admin {current_user.id} {status} credit request {request_id} for user {request_data['user_id']}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             return redirect(url_for('admin.view_credit_requests'))
         
         request_data['ficore_credit_balance'] = int(db.users.find_one({'_id': request_data['user_id']}).get('ficore_credit_balance', 0))  # Ensure integer
@@ -321,7 +321,7 @@ def manage_credit_request(request_id):
         )
     except Exception as e:
         logger.error(f"Error managing credit request {request_id} by admin {current_user.id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.view_credit_requests'))
 
@@ -344,7 +344,7 @@ def audit():
         return render_template('admin/audit.html', logs=logs, title=trans('admin_audit_title', default='Audit Logs'))
     except Exception as e:
         logger.error(f"Error fetching audit logs for admin {current_user.id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return render_template('admin/audit.html', logs=[])
 
@@ -362,7 +362,7 @@ def admin_budgets():
         return render_template('admin/budgets.html', budgets=budgets, title=trans('admin_budgets_title', default='Manage Budgets'))
     except Exception as e:
         logger.error(f"Error fetching budgets for admin: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return render_template('admin/budgets.html', budgets=[]), 500
 
@@ -380,12 +380,12 @@ def admin_delete_budget(budget_id):
         else:
             flash(trans('admin_item_deleted', default='Budget deleted successfully'), 'success')
             logger.info(f"Admin {current_user.id} deleted budget {budget_id}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             log_audit_action('delete_budget', {'budget_id': budget_id})
         return redirect(url_for('admin.admin_budgets'))
     except Exception as e:
         logger.error(f"Error deleting budget {budget_id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.admin_budgets'))
 
@@ -403,7 +403,7 @@ def admin_bills():
         return render_template('admin/bills.html', bills=bills, title=trans('admin_bills_title', default='Manage Bills'))
     except Exception as e:
         logger.error(f"Error fetching bills for admin: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return render_template('admin/bills.html', bills=[]), 500
 
@@ -421,12 +421,12 @@ def admin_delete_bill(bill_id):
         else:
             flash(trans('admin_item_deleted', default='Bill deleted successfully'), 'success')
             logger.info(f"Admin {current_user.id} deleted bill {bill_id}",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             log_audit_action('delete_bill', {'bill_id': bill_id})
         return redirect(url_for('admin.admin_bills'))
     except Exception as e:
         logger.error(f"Error deleting bill {bill_id}: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.admin_bills'))
 
@@ -447,11 +447,11 @@ def admin_mark_bill_paid(bill_id):
         else:
             flash(trans('admin_bill_marked_paid', default='Bill marked as paid'), 'success')
             logger.info(f"Admin {current_user.id} marked bill {bill_id} as paid",
-                        extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                        extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             log_audit_action('mark_bill_paid', {'bill_id': bill_id})
         return redirect(url_for('admin.admin_bills'))
     except Exception as e:
         logger.error(f"Error marking bill {bill_id} as paid: {str(e)}",
-                     extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                     extra={'session_id': flask_session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('admin_database_error', default='An error occurred while accessing the database'), 'danger')
         return redirect(url_for('admin.admin_bills'))
