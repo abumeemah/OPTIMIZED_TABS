@@ -353,7 +353,7 @@ def new():
     if active_tab not in valid_tabs:
         active_tab = 'create-budget'
 
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'  or request.is_json
 
     try:
         log_tool_usage(
