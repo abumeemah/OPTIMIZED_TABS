@@ -89,7 +89,7 @@ def fix_ficore_credit_balances():
         logger.error(f"Error converting ficore_credit_balance to int: {str(e)}",
                      extra={'session_id': 'system', 'ip_address': 'system'})
 
-def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add', admin_id: str = None) -> None:
+def credit_ficore_credits(user_id: str, amount: int, ref: str, description: str, type: str = 'add', admin_id: str = None) -> None:
     """Credit or log Ficore Credits with MongoDB transaction, ensuring double balance."""
     try:
         db = utils.get_mongo_db()
@@ -127,6 +127,7 @@ def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add'
                     'status': 'completed',
                     'type': type,
                     'ref': ref,
+                    'description': description,
                     'payment_method': 'approved_request' if type == 'add' else None
                 }
                 logger.debug(f"Inserting ficore_credit_transaction: {document}",
@@ -135,7 +136,7 @@ def credit_ficore_credits(user_id: str, amount: int, ref: str, type: str = 'add'
                 db.audit_logs.insert_one({
                     'admin_id': admin_id or 'system',
                     'action': f'credit_ficore_credits_{type}',
-                    'details': {'user_id': user_id, 'amount': amount, 'ref': ref},
+                    'details': {'user_id': user_id, 'amount': amount, 'ref': ref, 'description': description},
                     'timestamp': datetime.utcnow()
                 }, session=mongo_session)
     except ValueError as e:
@@ -232,7 +233,9 @@ def request_credits():
                         }, session=mongo_session)
             except errors.PyMongoError as e:
                 logger.error(f"MongoDB error submitting credit request for user {current_user.id}, ref {ref}: {str(e)}",
-                             extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
+                             extra={'session_id': session.get('sid', 'no
+
+-session-id'), 'user_id': current_user.id})
                 if receipt_file_id:
                     try:
                         fs.delete(receipt_file_id)
@@ -305,7 +308,7 @@ def history():
         all_transactions = ficore_transactions + valid_legacy_transactions
         all_transactions.sort(key=lambda x: x.get('timestamp', x.get('date', datetime.min)), reverse=True)
 
-        # Format dates in Python before passing to template
+        # Format dates and descriptions in Python before passing to template
         formatted_transactions = []
         for tx in all_transactions:
             tx_dict = to_dict_ficore_credit_transaction(tx)
@@ -315,6 +318,8 @@ def history():
                 tx_dict['date_str'] = tx['date'].strftime('%Y-%m-%d %H:%M:%S')
             else:
                 tx_dict['date_str'] = None
+            # Add description, falling back to ref or 'Unknown' for legacy transactions
+            tx_dict['description'] = tx.get('description', tx.get('ref', trans('general_unknown', default='Unknown')))
             formatted_transactions.append(tx_dict)
 
         requests = get_credit_requests(db, query)
@@ -414,6 +419,7 @@ def manage_credit_request(request_id):
         if form.validate_on_submit():
             status = form.status.data
             ref = f"REQ_PROCESS_{datetime.utcnow().isoformat()}"
+            description = trans('credits_approval_description', default='Credit Request Approved') if status == 'approved' else trans('credits_denial_description', default='Credit Request Denied')
             with client.start_session() as mongo_session:
                 with mongo_session.start_transaction():
                     update_credit_request(db, request_id, {
@@ -425,17 +431,18 @@ def manage_credit_request(request_id):
                             user_id=request_data['user_id'],
                             amount=request_data['amount'],
                             ref=ref,
+                            description=description,
                             type='add',
                             admin_id=str(current_user.id)
                         )
                     db.audit_logs.insert_one({
                         'admin_id': str(current_user.id),
                         'action': f'credit_request_{status}',
-                        'details': {'request_id': request_id, 'user_id': request_data['user_id'], 'amount': request_data['amount'], 'ref': ref},
+                        'details': {'request_id': request_id, 'user_id': request_data['user_id'], 'amount': request_data['amount'], 'ref': ref, 'description': description},
                         'timestamp': datetime.utcnow()
                     }, session=mongo_session)
             flash(trans(f'credits_request_{status}', default=f'Credit request {status} successfully'), 'success')
-            logger.info(f"Admin {current_user.id} {status} credit request {request_id} for user {request_data['user_id']}, ref: {ref}",
+            logger.info(f" mln {current_user.id} {status} credit request {request_id} for user {request_data['user_id']}, ref: {ref}, description: {description}",
                         extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             return redirect(url_for('credits.view_credit_requests'))
         
@@ -477,7 +484,8 @@ def receipt_upload():
             client = db.client
             fs = GridFS(db)
             receipt_file = form.receipt.data
-            ref = f"RECEIPT_UPLOAD_{datetime.utcnow().isoformat()}"
+            ref = f"UPLOAD_RECEIPT_{datetime.utcnow().isoformat()}"
+            description = trans('credits_receipt_upload_description', default='Receipt Upload Deduction')
             file_id = None
 
             # Step 1: Handle file upload outside the transaction
@@ -525,6 +533,7 @@ def receipt_upload():
                                 'status': 'completed',
                                 'type': 'spend',
                                 'ref': ref,
+                                'description': description,
                                 'payment_method': None
                             }
                             logger.debug(f"Inserting ficore_credit_transaction: {document}",
@@ -533,7 +542,7 @@ def receipt_upload():
                         db.audit_logs.insert_one({
                             'admin_id': 'system',
                             'action': 'receipt_upload',
-                            'details': {'user_id': str(current_user.id), 'file_id': str(file_id), 'ref': ref},
+                            'details': {'user_id': str(current_user.id), 'file_id': str(file_id), 'ref': ref, 'description': description},
                             'timestamp': datetime.utcnow()
                         }, session=mongo_session)
             except (ValueError, errors.PyMongoError) as e:
@@ -552,7 +561,7 @@ def receipt_upload():
                 return redirect(url_for('credits.receipt_upload'))
 
             flash(trans('credits_receipt_uploaded', default='Receipt uploaded successfully'), 'success')
-            logger.info(f"User {current_user.id} uploaded receipt {file_id}, ref: {ref}",
+            logger.info(f"User {current_user.id} uploaded receipt {file_id}, ref: {ref}, description: {description}",
                         extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
             return redirect(url_for('credits.history'))
     except AttributeError as e:
