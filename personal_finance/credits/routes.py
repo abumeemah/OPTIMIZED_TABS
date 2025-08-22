@@ -233,9 +233,7 @@ def request_credits():
                         }, session=mongo_session)
             except errors.PyMongoError as e:
                 logger.error(f"MongoDB error submitting credit request for user {current_user.id}, ref {ref}: {str(e)}",
-                             extra={'session_id': session.get('sid', 'no
-
--session-id'), 'user_id': current_user.id})
+                             extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
                 if receipt_file_id:
                     try:
                         fs.delete(receipt_file_id)
