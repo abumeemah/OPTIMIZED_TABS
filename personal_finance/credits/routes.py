@@ -431,18 +431,20 @@ def manage_credit_request(request_id):
             title=trans('credits_manage_request_title', default='Manage Credit Request', lang=session.get('lang', 'en'))
         )
     except errors.PyMongoError as e:
-        logger.error(f"MongoDB error managing credit request {request_id} by admin {current_user.id}, ref: {ref}: {str(e)}",
+        logger.error(f"MongoDB error managing credit request {request_id} by admin {current_user.id}: {str(e)}",
                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('general_something_went_wrong', default='An error occurred'), 'danger')
+        return redirect(url_for('credits.view_credit_requests'))
     except AttributeError as e:
-        logger.error(f"AttributeError managing credit request {request_id} by admin {current_user.id}, ref: {ref}: {str(e)}",
+        logger.error(f"AttributeError managing credit request {request_id} by admin {current_user.id}: {str(e)}",
                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash('Error managing credit request due to module configuration.', 'danger')
+        return redirect(url_for('credits.view_credit_requests'))
     except Exception as e:
-        logger.error(f"Unexpected error managing credit request {request_id} by admin {current_user.id}, ref: {ref}: {str(e)}",
+        logger.error(f"Unexpected error managing credit request {request_id} by admin {current_user.id}: {str(e)}",
                      extra={'session_id': session.get('sid', 'no-session-id'), 'user_id': current_user.id})
         flash(trans('general_something_went_wrong', default='An error occurred'), 'danger')
-    return redirect(url_for('credits.view_credit_requests'))
+        return redirect(url_for('credits.view_credit_requests'))
 
 @credits_bp.route('/receipt_upload', methods=['GET', 'POST'])
 @login_required
