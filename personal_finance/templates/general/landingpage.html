@@ -51,42 +51,62 @@
     <div class="section-card mt-5">
         <h3 class="section-title">{{ t('general_who_we_serve', default='Who We Serve') | e }}</h3>
         <p class="text-muted">{{ t('general_who_we_serve_desc', default='FiCore empowers individuals with tailored personal finance tools.') | e }}</p>
-        <div class="row row-cols-1 row-cols-md-4 g-4">
-            <div class="col">
-                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body">
+        <div class="accordion" id="whoWeServeAccordion">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="artisans">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseArtisans" aria-expanded="true" aria-controls="collapseArtisans">
+                        {{ t('general_artisans', default='Artisans') | e }}
+                    </button>
+                </h3>
+                <div id="collapseArtisans" class="accordion-collapse collapse show" aria-labelledby="artisans" data-bs-parent="#whoWeServeAccordion">
+                    <div class="accordion-body">
+                        <a href="{{ url_for('users.signup') }}" class="tool-card-link">
                             <h5>{{ t('general_artisans', default='Artisans') | e }}</h5>
-                        </div>
+                        </a>
                     </div>
-                </a>
+                </div>
             </div>
-            <div class="col">
-                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="professionals">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProfessionals" aria-expanded="false" aria-controls="collapseProfessionals">
+                        {{ t('general_professionals', default='Professionals') | e }}
+                    </button>
+                </h3>
+                <div id="collapseProfessionals" class="accordion-collapse collapse" aria-labelledby="professionals" data-bs-parent="#whoWeServeAccordion">
+                    <div class="accordion-body">
+                        <a href="{{ url_for('users.signup') }}" class="tool-card-link">
                             <h5>{{ t('general_professionals', default='Professionals') | e }}</h5>
-                        </div>
+                        </a>
                     </div>
-                </a>
+                </div>
             </div>
-            <div class="col">
-                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="youngCouples">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseYoungCouples" aria-expanded="false" aria-controls="collapseYoungCouples">
+                        {{ t('general_young_couples', default='Young Couples') | e }}
+                    </button>
+                </h3>
+                <div id="collapseYoungCouples" class="accordion-collapse collapse" aria-labelledby="youngCouples" data-bs-parent="#whoWeServeAccordion">
+                    <div class="accordion-body">
+                        <a href="{{ url_for('users.signup') }}" class="tool-card-link">
                             <h5>{{ t('general_young_couples', default='Young Couples') | e }}</h5>
-                        </div>
+                        </a>
                     </div>
-                </a>
+                </div>
             </div>
-            <div class="col">
-                <a href="{{ url_for('users.signup') }}" class="tool-card-link">
-                    <div class="card h-100 shadow-sm">
-                        <div class="card-body">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="modernEntrepreneurs">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseModernEntrepreneurs" aria-expanded="false" aria-controls="collapseModernEntrepreneurs">
+                        {{ t('general_modern_entrepreneurs', default='Modern Entrepreneurs') | e }}
+                    </button>
+                </h3>
+                <div id="collapseModernEntrepreneurs" class="accordion-collapse collapse" aria-labelledby="modernEntrepreneurs" data-bs-parent="#whoWeServeAccordion">
+                    <div class="accordion-body">
+                        <a href="{{ url_for('users.signup') }}" class="tool-card-link">
                             <h5>{{ t('general_modern_entrepreneurs', default='Modern Entrepreneurs') | e }}</h5>
-                        </div>
+                        </a>
                     </div>
-                </a>
+                </div>
             </div>
         </div>
     </div>
@@ -97,31 +117,43 @@
         <p class="text-muted">{{ t('general_tools_desc', default='Powerful tools to manage your personal finances effectively.') | e }}</p>
         {% if explore_features_for_template %}
             {% set categories = ['Personal'] %}
-            {% for category in categories %}
-                {% set category_tools = explore_features_for_template | selectattr('category', 'equalto', category) | list %}
-                {% if category_tools %}
-                    <h4>{{ t('general_' + category | lower + '_tools', default=category + ' Tools') | e }}</h4>
-                    <div class="row">
-                        {% for tool in category_tools %}
-                            {% if tool.get('label') in ['Budget', 'Bills', 'Shopping'] %}
-                            <div class="col-md-4 mb-3">
-                                <a href="{{ tool.get('url', url_for('users.login')) }}" class="tool-card-link">
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <h5>{{ t(tool.get('label_key', ''), default=tool.get('label', 'Tool')) | e }}</h5>
-                                            <p>{{ t(tool.get('description_key', ''), default=tool.get('description', 'Description not available')) | e }}</p>
-                                        </div>
+            <div class="accordion" id="exploreToolsAccordion">
+                {% for category in categories %}
+                    {% set category_tools = explore_features_for_template | selectattr('category', 'equalto', category) | list %}
+                    {% if category_tools %}
+                        <div class="accordion-item">
+                            <h3 class="accordion-header" id="tools{{ category }}">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTools{{ category }}" aria-expanded="false" aria-controls="collapseTools{{ category }}">
+                                    {{ t('general_' + category | lower + '_tools', default=category + ' Tools') | e }}
+                                </button>
+                            </h3>
+                            <div id="collapseTools{{ category }}" class="accordion-collapse collapse" aria-labelledby="tools{{ category }}" data-bs-parent="#exploreToolsAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        {% for tool in category_tools %}
+                                            {% if tool.get('label') in ['Budget', 'Bills', 'Shopping'] %}
+                                                <div class="col-md-4 mb-3">
+                                                    <a href="{{ tool.get('url', url_for('users.login')) }}" class="tool-card-link">
+                                                        <div class="card">
+                                                            <div class="card-body">
+                                                                <h5>{{ t(tool.get('label_key', ''), default=tool.get('label', 'Tool')) | e }}</h5>
+                                                                <p>{{ t(tool.get('description_key', ''), default=tool.get('description', 'Description not available')) | e }}</p>
+                                                            </div>
+                                                        </div>
+                                                    </a>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
                                     </div>
-                                </a>
+                                </div>
                             </div>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+                {% if not categories %}
+                    <p class="text-muted">{{ t('general_no_tools_available', default='No tools available at the moment.') | e }}</p>
                 {% endif %}
-            {% endfor %}
-            {% if not categories %}
-                <p class="text-muted">{{ t('general_no_tools_available', default='No tools available at the moment.') | e }}</p>
-            {% endif %}
+            </div>
         {% else %}
             <p class="text-muted">{{ t('general_no_tools_available', default='No tools available at the moment.') | e }}</p>
         {% endif %}
@@ -135,7 +167,6 @@
             <div class="col">
                 <div class="why-item text-center">
                     <p class="text-muted">
-
                         {{ t('general_localized', default='Built for Africa with Naira support and regional insights') | e }}
                     </p>
                 </div>
@@ -143,7 +174,6 @@
             <div class="col">
                 <div class="why-item text-center">
                     <p class="text-muted">
-
                         {{ t('general_empowers', default='Empowers individuals with personal finance tools') | e }}
                     </p>
                 </div>
@@ -151,7 +181,6 @@
             <div class="col">
                 <div class="why-item text-center">
                     <p class="text-muted">
-
                         {{ t('general_actionable', default='Actionable insights for smarter financial decisions') | e }}
                     </p>
                 </div>
@@ -159,7 +188,6 @@
             <div class="col">
                 <div class="why-item text-center">
                     <p class="text-muted">
-
                         {{ t('general_secure', default='Advisory-only – we don\'t access your funds') | e }}
                     </p>
                 </div>
@@ -381,6 +409,15 @@
 /* Ensure tooltips don't interfere with navbar */
 [data-bs-toggle="tooltip"] {
     z-index: 1000; /* Lower than navbar (z-index: 1020) */
+}
+.avatar-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.gradient-bg {
+    background: linear-gradient(135deg, #007bff, #6610f2);
 }
 </style>
 {% endblock %}
