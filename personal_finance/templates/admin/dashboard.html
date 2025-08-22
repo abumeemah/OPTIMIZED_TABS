@@ -48,6 +48,22 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-light">
+            <h5 class="mb-0">{{ t('admin_actions', default='Admin Actions') }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('admin.view_feedbacks') }}" class="btn btn-primary">{{ t('admin_view_feedbacks', default='View Feedbacks') }}</a>
+                <a href="{{ url_for('admin.manage_users') }}" class="btn btn-primary">{{ t('admin_manage_users_title', default='Manage Users') }}</a>
+                <a href="{{ url_for('admin.view_credit_requests') }}" class="btn btn-primary">{{ t('credits_requests_title', default='View Credit Requests') }}</a>
+                <a href="{{ url_for('admin.audit') }}" class="btn btn-primary">{{ t('admin_audit_title', default='View Audit Logs') }}</a>
+                <a href="{{ url_for('admin.admin_budgets') }}" class="btn btn-primary">{{ t('admin_budgets_title', default='View Budgets') }}</a>
+                <a href="{{ url_for('admin.admin_bills') }}" class="btn btn-primary">{{ t('admin_bills_title', default='View Bills') }}</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light">
             <h5 class="mb-0">{{ t('admin_recent_users', default='Recent Users') }}</h5>
         </div>
         <div class="card-body">
