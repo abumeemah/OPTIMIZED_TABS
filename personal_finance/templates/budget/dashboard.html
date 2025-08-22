@@ -32,7 +32,7 @@
                         <div class="card bg-danger text-white shadow-sm">
                             <div class="card-body">
                                 <h6>{{ t('budget_expenses', default='Total Expenses') }}</h6>
-                                <h4>{{ latest_budget.get('fixed_expenses', '0.00') }}</h4>
+                                <h4>{{ latest_budget.get('total_expenses', '0.00') }}</h4>
                             </div>
                         </div>
                     </div>
@@ -86,7 +86,7 @@
                                             <tr>
                                                 <td>{{ budget.get('created_at', 'N/A') }}</td>
                                                 <td>{{ budget.get('income', '0.00') }}</td>
-                                                <td>{{ budget.get('fixed_expenses', '0.00') }}</td>
+                                                <td>{{ budget.get('total_expenses', '0.00') }}</td>
                                                 <td class="{% if budget.get('surplus_deficit', 0)|float >= 0 %}text-success{% else %}text-danger{% endif %}">
                                                     {{ budget.get('surplus_deficit_formatted', '0.00') }}
                                                 </td>
