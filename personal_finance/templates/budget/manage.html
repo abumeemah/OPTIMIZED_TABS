@@ -114,6 +114,9 @@
                                     {% endif %}
                                 </div>
                                 <div>
+                                    <a href="{{ url_for('budget.export_pdf', budget_id=budget_id) }}" class="btn btn-outline-success btn-sm me-2" title="{{ t('budget_export_single_pdf_cost', default='Export Budget PDF (1 FC)') }}">
+                                        <i class="fas fa-file-pdf me-1"></i>{{ t('budget_export', default='Export') }}
+                                    </a>
                                     <form method="POST" action="{{ url_for('budget.manage') }}" style="display: inline;">
                                         {{ csrf_token() }}
                                         <input type="hidden" name="budget_id" value="{{ budget_id }}">
@@ -156,8 +159,8 @@
                     <a href="{{ url_for('budget.new') }}" class="btn btn-primary me-2">
                         <i class="fas fa-plus me-1"></i>{{ t('budget_create_budget', default='Create Budget') }}
                     </a>
-                    <a href="{{ url_for('budget.export_pdf') }}" class="btn btn-outline-success me-2" title="{{ t('budget_export_pdf_cost', default='Export PDF (2 FC)') }}">
-                        <i class="fas fa-file-pdf me-1"></i>{{ t('budget_export_pdf', default='Export PDF') }}
+                    <a href="{{ url_for('budget.export_pdf') }}" class="btn btn-outline-success me-2" title="{{ t('budget_export_pdf_cost', default='Export Full History PDF (2 FC)') }}">
+                        <i class="fas fa-file-pdf me-1"></i>{{ t('budget_export_history_pdf', default='Export History PDF') }}
                     </a>
                     <a href="{{ url_for('budget.dashboard') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-chart-pie me-1"></i>{{ t('budget_view_dashboard', default='View Dashboard') }}
