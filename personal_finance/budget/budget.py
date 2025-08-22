@@ -13,6 +13,11 @@ from bson import ObjectId
 from models import log_tool_usage, create_budget
 import uuid
 import bleach
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from io import BytesIO
+from helpers.branding_helpers import draw_ficore_pdf_header
 
 budget_bp = Blueprint(
     'budget',
@@ -352,7 +357,7 @@ def new():
     if active_tab not in valid_tabs:
         active_tab = 'create-budget'
 
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'  or request.is_json
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
 
     try:
         log_tool_usage(
@@ -1156,33 +1161,48 @@ def summary():
 @custom_login_required
 @utils.requires_role(['personal', 'admin'])
 def export_pdf():
-    """Export budget to PDF with FC deduction."""
+    """Export budget to PDF with FC deduction, supporting single budget or full history."""
     if 'sid' not in session:
         session['sid'] = str(uuid.uuid4())
     
     db = utils.get_mongo_db()
+    budget_id = request.args.get('budget_id')
     
     try:
+        # Determine export type and credit cost
+        is_single_budget = bool(budget_id)
+        credit_cost = 1 if is_single_budget else 2
+        export_type = 'single_budget' if is_single_budget else 'full_history'
+        
         # Check FC balance before generating PDF
         if current_user.is_authenticated and not utils.is_admin():
-            if not utils.check_ficore_credit_balance(required_amount=2, user_id=current_user.id):
-                flash(trans('budget_insufficient_credits_pdf', default='Insufficient credits for PDF export. PDF export costs 2 FC.'), 'danger')
+            if not utils.check_ficore_credit_balance(required_amount=credit_cost, user_id=current_user.id):
+                flash(trans('budget_insufficient_credits_pdf', default=f'Insufficient credits for PDF export. {export_type.replace("_", " ").title()} export costs {credit_cost} FC.'), 'danger')
                 return redirect(url_for('budget.manage'))
         
         filter_criteria = {} if utils.is_admin() else {'user_id': str(current_user.id)}
-        budgets = list(db.budgets.find(filter_criteria).sort('created_at', -1).limit(10))
         
-        if not budgets:
-            flash(trans('budget_no_data_for_pdf', default='No budget data found for PDF export.'), 'warning')
-            return redirect(url_for('budget.manage'))
+        # Fetch budget(s)
+        if is_single_budget:
+            if not ObjectId.is_valid(budget_id):
+                flash(trans('budget_invalid_id', default='Invalid budget ID.'), 'danger')
+                return redirect(url_for('budget.manage'))
+            budget = db.budgets.find_one({'_id': ObjectId(budget_id), **filter_criteria})
+            if not budget:
+                flash(trans('budget_no_data_for_pdf', default='No budget data found for PDF export.'), 'warning')
+                return redirect(url_for('budget.manage'))
+            budgets = [budget]
+            report_title = f"Budget Report - {utils.format_date(budget.get('created_at'))}"
+            filename = f"budget_report_{budget_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
+        else:
+            budgets = list(db.budgets.find(filter_criteria).sort('created_at', -1).limit(10))
+            if not budgets:
+                flash(trans('budget_no_data_for_pdf', default='No budget data found for PDF export.'), 'warning')
+                return redirect(url_for('budget.manage'))
+            report_title = "Budget History Report"
+            filename = f"budget_history_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
         
         # Generate PDF
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import inch
-        from io import BytesIO
-        from helpers.branding_helpers import draw_ficore_pdf_header
-        
         buffer = BytesIO()
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
@@ -1192,7 +1212,7 @@ def export_pdf():
         
         # Title
         p.setFont("Helvetica-Bold", 16)
-        p.drawString(50, height - 120, "Budget Report")
+        p.drawString(50, height - 120, report_title)
         
         # Report details
         p.setFont("Helvetica", 12)
@@ -1201,59 +1221,103 @@ def export_pdf():
         p.drawString(50, y - 20, f"Total Budget Records: {len(budgets)}")
         y -= 60
         
-        # Budget table header
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(50, y, "Date")
-        p.drawString(150, y, "Income")
-        p.drawString(220, y, "Fixed Exp.")
-        p.drawString(290, y, "Variable Exp.")
-        p.drawString(370, y, "Savings Goal")
-        p.drawString(450, y, "Surplus/Deficit")
-        y -= 20
-        
-        # Budget records
-        p.setFont("Helvetica", 9)
-        for budget in budgets:
-            if y < 50:  # New page if needed
-                p.showPage()
-                draw_ficore_pdf_header(p, current_user, y_start=height - 50)
-                y = height - 120
-                # Redraw header
-                p.setFont("Helvetica-Bold", 10)
-                p.drawString(50, y, "Date")
-                p.drawString(150, y, "Income")
-                p.drawString(220, y, "Fixed Exp.")
-                p.drawString(290, y, "Variable Exp.")
-                p.drawString(370, y, "Savings Goal")
-                p.drawString(450, y, "Surplus/Deficit")
-                y -= 20
-                p.setFont("Helvetica", 9)
+        if is_single_budget:
+            # Single budget detailed view
+            budget = budgets[0]
+            p.setFont("Helvetica-Bold", 12)
+            p.drawString(50, y, "Budget Details")
+            y -= 20
+            p.setFont("Helvetica", 10)
+            p.drawString(50, y, f"Date: {utils.format_date(budget.get('created_at'))}")
+            p.drawString(50, y - 15, f"Income: {format_currency(budget.get('income', 0))}")
+            p.drawString(50, y - 30, f"Fixed Expenses: {format_currency(budget.get('fixed_expenses', 0))}")
+            p.drawString(50, y - 45, f"Variable Expenses: {format_currency(budget.get('variable_expenses', 0))}")
+            p.drawString(50, y - 60, f"Total Expenses: {format_currency(float(budget.get('fixed_expenses', 0)) + float(budget.get('variable_expenses', 0)))}")
+            p.drawString(50, y - 75, f"Savings Goal: {format_currency(budget.get('savings_goal', 0))}")
+            p.drawString(50, y - 90, f"Surplus/Deficit: {format_currency(budget.get('surplus_deficit', 0))}")
+            p.drawString(50, y - 105, f"Dependents: {budget.get('dependents', 0)}")
+            y -= 125
             
-            p.drawString(50, y, utils.format_date(budget.get('created_at')))
-            p.drawString(150, y, format_currency(budget.get('income', 0)))
-            p.drawString(220, y, format_currency(budget.get('fixed_expenses', 0)))
-            p.drawString(290, y, format_currency(budget.get('variable_expenses', 0)))
-            p.drawString(370, y, format_currency(budget.get('savings_goal', 0)))
-            p.drawString(450, y, format_currency(budget.get('surplus_deficit', 0)))
+            # Categories
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(50, y, "Expense Categories")
             y -= 15
+            p.setFont("Helvetica", 9)
+            p.drawString(50, y, f"Housing: {format_currency(budget.get('housing', 0))}")
+            p.drawString(50, y - 15, f"Food: {format_currency(budget.get('food', 0))}")
+            p.drawString(50, y - 30, f"Transport: {format_currency(budget.get('transport', 0))}")
+            p.drawString(50, y - 45, f"Miscellaneous: {format_currency(budget.get('miscellaneous', 0))}")
+            p.drawString(50, y - 60, f"Others: {format_currency(budget.get('others', 0))}")
+            y -= 75
+            
+            # Custom Categories
+            if budget.get('custom_categories', []):
+                p.setFont("Helvetica-Bold", 10)
+                p.drawString(50, y, "Custom Categories")
+                y -= 15
+                p.setFont("Helvetica", 9)
+                for cat in budget.get('custom_categories', []):
+                    if y < 50:
+                        p.showPage()
+                        draw_ficore_pdf_header(p, current_user, y_start=height - 50)
+                        y = height - 50
+                        p.setFont("Helvetica", 9)
+                    p.drawString(50, y, f"{cat['name']}: {format_currency(cat['amount'])}")
+                    y -= 15
+        else:
+            # Budget history table
+            p.setFont("Helvetica-Bold", 10)
+            p.drawString(50, y, "Date")
+            p.drawString(150, y, "Income")
+            p.drawString(220, y, "Fixed Exp.")
+            p.drawString(290, y, "Variable Exp.")
+            p.drawString(370, y, "Savings Goal")
+            p.drawString(450, y, "Surplus/Deficit")
+            y -= 20
+            
+            # Budget records
+            p.setFont("Helvetica", 9)
+            for budget in budgets:
+                if y < 50:  # New page if needed
+                    p.showPage()
+                    draw_ficore_pdf_header(p, current_user, y_start=height - 50)
+                    y = height - 120
+                    # Redraw header
+                    p.setFont("Helvetica-Bold", 10)
+                    p.drawString(50, y, "Date")
+                    p.drawString(150, y, "Income")
+                    p.drawString(220, y, "Fixed Exp.")
+                    p.drawString(290, y, "Variable Exp.")
+                    p.drawString(370, y, "Savings Goal")
+                    p.drawString(450, y, "Surplus/Deficit")
+                    y -= 20
+                    p.setFont("Helvetica", 9)
+                
+                p.drawString(50, y, utils.format_date(budget.get('created_at')))
+                p.drawString(150, y, format_currency(budget.get('income', 0)))
+                p.drawString(220, y, format_currency(budget.get('fixed_expenses', 0)))
+                p.drawString(290, y, format_currency(budget.get('variable_expenses', 0)))
+                p.drawString(370, y, format_currency(budget.get('savings_goal', 0)))
+                p.drawString(450, y, format_currency(budget.get('surplus_deficit', 0)))
+                y -= 15
         
         p.save()
         buffer.seek(0)
         
         # Deduct FC for PDF export
         if current_user.is_authenticated and not utils.is_admin():
-            if not deduct_ficore_credits(db, current_user.id, 2, 'export_budget_pdf'):
-                flash(trans('budget_credit_deduction_failed', default='Failed to deduct credits for PDF export.'), 'danger')
+            if not deduct_ficore_credits(db, current_user.id, credit_cost, f'export_budget_pdf_{export_type}', budget_id if is_single_budget else None):
+                flash(trans('budget_credit_deduction_failed', default=f'Failed to deduct credits for {export_type.replace("_", " ").title()} PDF export.'), 'danger')
                 return redirect(url_for('budget.manage'))
         
         return Response(
             buffer.getvalue(),
             mimetype='application/pdf',
-            headers={'Content-Disposition': f'attachment; filename=budget_report_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.pdf'}
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
         )
         
     except Exception as e:
-        logger.error(f"Error exporting budget PDF: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
+        logger.error(f"Error exporting {export_type} PDF: {str(e)}", exc_info=True, extra={'session_id': session.get('sid', 'unknown')})
         flash(trans('budget_pdf_error', default='Error generating PDF report.'), 'danger')
         return redirect(url_for('budget.manage'))
 
