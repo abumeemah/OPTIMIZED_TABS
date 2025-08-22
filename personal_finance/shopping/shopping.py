@@ -1314,7 +1314,7 @@ def export_pdf(list_id):
             return redirect(url_for('shopping.manage'))
         
         if current_user.is_authenticated and not is_admin():
-            if not clean_ficore_credit_balance(required_amount=2, user_id=current_user.id):
+            if not check_ficore_credit_balance(required_amount=2, user_id=current_user.id):
                 logger.warning(f"Insufficient credits for PDF export for user {current_user.id}", extra={'session_id': session_id})
                 flash(trans('shopping_insufficient_credits_pdf', default='Insufficient credits for PDF export. PDF export costs 2 FC.'), 'danger')
                 return redirect(url_for('shopping.manage'))
