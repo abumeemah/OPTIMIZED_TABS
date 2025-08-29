@@ -35,7 +35,7 @@
                 </a>
             {% else %}
                 <a class="navbar-brand" href="{{ url_for('general_bp.home') if request.blueprint == 'personal' else url_for('general_bp.home') | e }}" aria-label="{{ t('general_ficore_africa', default='FiCore Africa') | e }}">
-                    <img src="{{ url_for('static', filename='img/ficore_logo.png') | e }}" alt="{{ t('general_ficore_africa_logo', default='FiCore Africa Logo') | e }}" class="ficore-logo">
+                    <img src="{{ url_for('static', filename='img/ficore_africa_logo.png') | e }}" alt="{{ t('general_ficore_africa_logo', default='FiCore Africa Logo') | e }}" class="ficore-logo">
                 </a>
             {% endif %}
         </div>
