@@ -24,6 +24,9 @@
             <a href="{{ url_for('users.login') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_login_tooltip', default='Log in to your account') | e }}">
                 <i class="bi bi-box-arrow-in-right me-2"></i>{{ t('general_login', default='Log In') | e }}
             </a>
+            <a href="https://www.ficoreafrica.com/general/waitlist" class="btn btn-outline-warning" data-bs-toggle="tooltip" data-bs-title="{{ t('general_waitlist_tooltip', default='Join our waitlist for early access') | e }}">
+                <i class="bi bi-person-lines-fill me-2"></i>{{ t('general_waitlist', default='Join Waitlist') | e }}
+            </a>
         </div>
     </div>
 
@@ -163,39 +166,59 @@
     <div class="section-card why-section mt-5">
         <h2 class="section-title text-center"><i class="bi bi-info-circle-fill me-2 text-primary"></i>{{ t('general_why_ficore', default='Why FiCore Africa?') | e }}</h2>
         <p class="text-center text-muted mb-4">{{ t('general_ficore_highlight', default='Africa\'s #1 Localized Personal Finance Platform') | e }}</p>
-        <div class="row row-cols-1 row-cols-md-4 g-4">
-            <div class="col">
-                <div class="why-item text-center">
-                    <p class="text-muted">
+        <div class="accordion" id="whyFiCoreAccordion">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="localized">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLocalized" aria-expanded="true" aria-controls="collapseLocalized">
+                        {{ t('general_localized', default='Localized for Africa') | e }}
+                    </button>
+                </h3>
+                <div id="collapseLocalized" class="accordion-collapse collapse show" aria-labelledby="localized" data-bs-parent="#whyFiCoreAccordion">
+                    <div class="accordion-body">
                         {{ t('general_localized', default='Built for Africa with Naira support and regional insights') | e }}
-                    </p>
+                    </div>
                 </div>
             </div>
-            <div class="col">
-                <div class="why-item text-center">
-                    <p class="text-muted">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="empowers">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEmpowers" aria-expanded="false" aria-controls="collapseEmpowers">
+                        {{ t('general_empowers', default='Empowers Individuals') | e }}
+                    </button>
+                </h3>
+                <div id="collapseEmpowers" class="accordion-collapse collapse" aria-labelledby="empowers" data-bs-parent="#whyFiCoreAccordion">
+                    <div class="accordion-body">
                         {{ t('general_empowers', default='Empowers individuals with personal finance tools') | e }}
-                    </p>
+                    </div>
                 </div>
             </div>
-            <div class="col">
-                <div class="why-item text-center">
-                    <p class="text-muted">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="actionable">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseActionable" aria-expanded="false" aria-controls="collapseActionable">
+                        {{ t('general_actionable', default='Actionable Insights') | e }}
+                    </button>
+                </h3>
+                <div id="collapseActionable" class="accordion-collapse collapse" aria-labelledby="actionable" data-bs-parent="#whyFiCoreAccordion">
+                    <div class="accordion-body">
                         {{ t('general_actionable', default='Actionable insights for smarter financial decisions') | e }}
-                    </p>
+                    </div>
                 </div>
             </div>
-            <div class="col">
-                <div class="why-item text-center">
-                    <p class="text-muted">
+            <div class="accordion-item">
+                <h3 class="accordion-header" id="secure">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSecure" aria-expanded="false" aria-controls="collapseSecure">
+                        {{ t('general_secure', default='Secure Platform') | e }}
+                    </button>
+                </h3>
+                <div id="collapseSecure" class="accordion-collapse collapse" aria-labelledby="secure" data-bs-parent="#whyFiCoreAccordion">
+                    <div class="accordion-body">
                         {{ t('general_secure', default='Advisory-only – we don\'t access your funds') | e }}
-                    </p>
+                    </div>
                 </div>
             </div>
-            <div class="text-center mt-4">
-                <span class="animated-counter display-5 fw-bold text-primary" data-count="150+">150+</span>
-                <span class="fs-5">{{ t('general_users_served', default='Users Served') | e }}</span>
-            </div>
+        </div>
+        <div class="text-center mt-4">
+            <span class="animated-counter display-5 fw-bold text-primary" data-count="150+">150+</span>
+            <span class="fs-5">{{ t('general_users_served', default='Users Served') | e }}</span>
         </div>
     </div>
 
@@ -349,6 +372,7 @@
             <a href="{{ url_for('users.signup') }}" class="btn btn-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_get_started_tooltip', default='Start your financial journey') | e }}">{{ t('general_get_started', default='Get Started') | e }}</a>
             <a href="{{ url_for('users.signup') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_signup_personal_tooltip', default='Sign up for personal finance tools') | e }}">{{ t('general_signup_personal', default='Personal Sign Up') | e }}</a>
             <a href="{{ url_for('users.login') }}" class="btn btn-outline-primary" data-bs-toggle="tooltip" data-bs-title="{{ t('general_login_tooltip', default='Log in to your account') | e }}">{{ t('general_login', default='Log In') | e }}</a>
+            <a href="https://www.ficoreafrica.com/general/waitlist" class="btn btn-outline-warning" data-bs-toggle="tooltip" data-bs-title="{{ t('general_waitlist_tooltip', default='Join our waitlist for early access') | e }}">{{ t('general_waitlist', default='Join Waitlist') | e }}</a>
         </div>
     </div>
 </div>
