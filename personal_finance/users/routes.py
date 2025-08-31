@@ -443,14 +443,25 @@ def signup():
 
             user_obj = create_user(db, user_data)
 
-            db.ficore_credit_transactions.insert_one({
+            # Ensure session_id is set for the transaction
+            if 'session_id' not in session:
+                session['session_id'] = str(uuid.uuid4())
+                logger.debug(f"Created new session_id for signup: {session['session_id']}")
+
+            # Insert transaction with all required fields as per schema
+            transaction_data = {
                 'user_id': username,
-                'email': email,
+                'action': 'signup_bonus',
                 'amount': 10,
+                'timestamp': datetime.utcnow(),
+                'session_id': session['session_id'],
+                'status': 'completed',
                 'type': 'credit',
-                'description': 'Signup bonus',
-                'timestamp': datetime.utcnow()
-            })
+                'description': 'Signup bonus'
+            }
+            logger.debug(f"Inserting ficore_credit_transaction: {transaction_data}")
+            db.ficore_credit_transactions.insert_one(transaction_data)
+
             log_audit_action('signup', {'user_id': username, 'email': email, 'role': 'personal'})
             logger.info(f"New user created: {username}, email: {email}, role: personal")
 
@@ -462,6 +473,11 @@ def signup():
             logger.info(f"User {username} logged in after signup. Session: {dict(session)}")
             setup_route = get_setup_wizard_route('personal')
             return redirect(url_for(setup_route))
+        except errors.WriteError as e:
+            logger.error(f"WriteError during signup for {username}: {str(e)}", exc_info=True)
+            flash(trans('general_database_validation_error', default='Invalid data provided for signup. Please try again.'), 'danger')
+            log_audit_action('signup_failed', {'username': username, 'email': email, 'reason': 'write_error', 'error': str(e)})
+            return render_template('users/signup.html', form=form, title=trans('general_signup', lang=session.get('lang', 'en'))), 400
         except errors.PyMongoError as e:
             logger.error(f"MongoDB error during signup for {username}: {str(e)}", exc_info=True)
             flash(trans('general_database_error', default='An error occurred while accessing the database. Please try again later.'), 'danger')
@@ -751,4 +767,3 @@ def logout():
         response.set_cookie(current_app.config['SESSION_COOKIE_NAME'], '', expires=0, httponly=True, secure=current_app.config.get('SESSION_COOKIE_SECURE', True))
         response.set_cookie('remember_token', '', expires=0, httponly=True, secure=True)
         return response
-
